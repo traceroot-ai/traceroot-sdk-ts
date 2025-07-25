@@ -4,7 +4,7 @@ github_repo_name: traceroot-sdk-ts
 github_commit_hash: main
 environment: development
 local_mode: true
-enable_span_console_export: true
+enable_span_console_export: false
 enable_log_console_export: true
 
 # For AWS mode, uncomment and set these:

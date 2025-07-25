@@ -93,6 +93,7 @@ const simulateError = traceroot.traceFunction(
 const runExample = traceroot.traceFunction(
   async function runExample(): Promise<void> {
     try {
+      logger.info('🚀 Starting example');
       // Example 1: Async function with tracing and parameter tracking
       const result1 = await processData('test-data', 5);
       logger.info('✅ Processed data', { result: result1 });
