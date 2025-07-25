@@ -1,0 +1,52 @@
+{
+  "name": "traceroot-sdk-ts",
+  "version": "0.0.1",
+  "description": "TypeScript SDK for TraceRoot tracing and logging",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "example": "ts-node examples/simple-example.ts",
+    "format": "prettier --write \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
+    "lint": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" --fix"
+  },
+  "keywords": [
+    "tracing",
+    "logging",
+    "opentelemetry",
+    "aws",
+    "cloudwatch"
+  ],
+  "author": "TraceRoot",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "eslint": "^9.31.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.6.2",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.53.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.53.0",
+    "@opentelemetry/resources": "^1.28.0",
+    "@opentelemetry/sdk-node": "^0.53.0",
+    "@opentelemetry/sdk-trace-base": "^1.28.0",
+    "@opentelemetry/semantic-conventions": "^1.36.0",
+    "aws-sdk": "^2.1490.0",
+    "axios": "^1.6.0",
+    "winston": "^3.11.0",
+    "winston-cloudwatch": "^6.2.0",
+    "yaml": "^2.3.4"
+  }
+}

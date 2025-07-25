@@ -1,0 +1,74 @@
+/**
+ * Configuration management for TraceRoot
+ */
+
+export interface TraceRootConfig {
+  // Identification
+  service_name: string;
+
+  // GitHub Identification
+  github_owner: string;
+  github_repo_name: string;
+  github_commit_hash: string;
+
+  // Token for TraceRoot API
+  token?: string;
+
+  // User identification
+  name?: string;
+
+  // AWS Configuration
+  aws_region?: string;
+
+  // OpenTelemetry Configuration
+  otlp_endpoint?: string;
+
+  // Environment
+  environment?: string;
+
+  // Tracing options
+  enable_span_console_export?: boolean;
+  enable_log_console_export?: boolean;
+
+  // Local mode
+  local_mode?: boolean;
+
+  // Internal properties (set during initialization)
+  _name?: string;
+  _sub_name?: string;
+}
+
+export class TraceRootConfigImpl implements TraceRootConfig {
+  service_name: string;
+  github_owner: string;
+  github_repo_name: string;
+  github_commit_hash: string;
+  token?: string;
+  name?: string;
+  aws_region: string = 'us-west-2';
+  otlp_endpoint: string = 'http://localhost:4318/v1/traces';
+  environment: string = 'development';
+  enable_span_console_export: boolean = false;
+  enable_log_console_export: boolean = false;
+  local_mode: boolean = false;
+  _name?: string;
+  _sub_name?: string;
+
+  constructor(config: TraceRootConfig) {
+    this.service_name = config.service_name;
+    this.github_owner = config.github_owner;
+    this.github_repo_name = config.github_repo_name;
+    this.github_commit_hash = config.github_commit_hash;
+    this.token = config.token;
+    this.name = config.name;
+    this.aws_region = config.aws_region || 'us-west-2';
+    this.otlp_endpoint = config.otlp_endpoint || 'http://localhost:4318/v1/traces';
+    this.environment = config.environment || 'development';
+    this.enable_span_console_export = config.enable_span_console_export || false;
+    this.enable_log_console_export = config.enable_log_console_export || false;
+    this.local_mode = config.local_mode || false;
+
+    this._name = this.name;
+    this._sub_name = `${this.service_name}-${this.environment}`;
+  }
+}
