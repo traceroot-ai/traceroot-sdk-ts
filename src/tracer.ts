@@ -318,7 +318,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
               // Add any pending log events before ending span
               if ((span as any)._pendingLogEvents) {
                 for (const event of (span as any)._pendingLogEvents) {
-                  span.addEvent(event.name, event.attributes);
+                  span.addEvent(event.name, event.attributes, event.timestamp);
                 }
               }
 
@@ -335,7 +335,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
               // Add any pending log events before ending span
               if ((span as any)._pendingLogEvents) {
                 for (const event of (span as any)._pendingLogEvents) {
-                  span.addEvent(event.name, event.attributes);
+                  span.addEvent(event.name, event.attributes, event.timestamp);
                 }
               }
 
@@ -367,7 +367,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       // Add any pending log events before ending span
       if ((span as any)._pendingLogEvents) {
         for (const event of (span as any)._pendingLogEvents) {
-          span.addEvent(event.name, event.attributes);
+          span.addEvent(event.name, event.attributes, event.timestamp);
         }
       }
 
@@ -383,7 +383,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       // Add any pending log events before ending span
       if ((span as any)._pendingLogEvents) {
         for (const event of (span as any)._pendingLogEvents) {
-          span.addEvent(event.name, event.attributes);
+          span.addEvent(event.name, event.attributes, event.timestamp);
         }
       }
 

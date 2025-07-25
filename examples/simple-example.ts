@@ -1,6 +1,5 @@
 import * as traceroot from '../src/index';
 import { forceFlush, shutdownTracing } from '../src/tracer';
-import { trace as otelTrace } from '@opentelemetry/api';
 
 // Configuration for the example
 const config: Partial<traceroot.TraceRootConfig> = {
@@ -33,12 +32,8 @@ const processData = traceroot.traceFunction(
     // Simulate some work
     await delay(100);
 
-    // ADD DEBUG LINE TO CHECK SPAN RECORDING STATE:
-    const span = otelTrace.getActiveSpan();
-    console.log(`[DEBUG] Before logger call - span recording: ${span?.isRecording()}`);
-
     const result = `Processed: ${data} (${count} times)`;
-    logger.info('✅ Async processing result', { result });
+    logger.info('✅ Async processing result in processData', { result });
 
     return result;
   },
@@ -62,11 +57,11 @@ const delay = traceroot.traceFunction(
 // Example using traceFunction wrapper for sync function
 const calculateSum = traceroot.traceFunction(
   function calculateSum(numbers: number[]): number {
-    logger.info('🔢 Starting sum calculation', { inputNumbers: numbers });
+    logger.info('🔢 Starting sum calculation in calculateSum', { inputNumbers: numbers });
     const sum = numbers.reduce((acc, num) => {
       return acc + num;
     }, 0);
-    logger.info('✅ Sum calculation completed', { result: sum });
+    logger.info('✅ Sum calculation completed in calculateSum', { result: sum });
     return sum;
   },
   {
@@ -81,7 +76,7 @@ const simulateError = traceroot.traceFunction(
     try {
       throw new Error('This is a simulated error for testing');
     } catch (_error: any) {
-      logger.error('✅ Caught expected error', _error.message);
+      logger.error('✅ Caught expected error in simulateError', _error.message);
     }
   },
   {
@@ -96,15 +91,12 @@ const runExample = traceroot.traceFunction(
       logger.info('🚀 Starting example');
       // Example 1: Async function with tracing and parameter tracking
       const result1 = await processData('test-data', 5);
-      logger.info('✅ Processed data', { result: result1 });
+      logger.info('✅ Processed data in runExample', { result: result1 });
 
       // Example 2: Sync function with tracing and return value tracking
       const numbers = [1, 2, 3, 4, 5];
       const sum = calculateSum(numbers);
-      logger.info('✅ Sum calculation completed', { result: sum });
-
-      // Add a small delay to ensure calculateSum span is processed
-      await new Promise(resolve => setTimeout(resolve, 100));
+      logger.info('✅ Sum calculation completed in runExample', { result: sum });
 
       // Example 3: Error handling with tracing
       try {
@@ -112,12 +104,8 @@ const runExample = traceroot.traceFunction(
       } catch {
         // Error already logged inside simulateError
       }
-
-      // Add a small delay to ensure error_simulation span is processed
-      await new Promise(resolve => setTimeout(resolve, 100));
     } catch (error: any) {
       logger.error('❌ Example failed', { error: error.message });
-      throw error;
     }
   },
   {

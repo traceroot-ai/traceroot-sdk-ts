@@ -6,6 +6,6 @@ A TypeScript SDK for TraceRoot tracing and logging, providing the same functiona
 npm install
 npm run build
 npm run format
-npm run lint
+npm run lint --fix
 npx ts-node --transpile-only examples/simple-example.ts
 ```
