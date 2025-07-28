@@ -10,6 +10,7 @@ import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { TraceRootConfig, TraceRootConfigImpl } from './config';
 import { findTracerootConfig } from './utils/config';
+import axios from 'axios';
 
 // Global state
 let _tracerProvider: NodeTracerProvider | null = null;
@@ -45,13 +46,40 @@ export class TraceOptionsImpl implements TraceOptions {
   }
 }
 
+interface AwsCredentials {
+  aws_access_key_id: string;
+  aws_secret_access_key: string;
+  aws_session_token: string;
+  region: string;
+  hash: string;
+  otlp_endpoint: string;
+}
+
+/**
+ * Fetch AWS credentials from TraceRoot API
+ */
+async function fetchAwsCredentials(config: TraceRootConfigImpl): Promise<AwsCredentials | null> {
+  try {
+    const response = await axios.get('https://api.test.traceroot.ai/v1/verify/credentials', {
+      params: { token: config.token },
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.log(`[TraceRoot] Failed to fetch AWS credentials: ${error.message}`);
+    return null;
+  }
+}
+
 /**
  * Initialize TraceRoot tracing and logging.
  *
  * This is the main entry point for setting up tracing and logging.
  * Call this once at the start of your application.
  */
-export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
+export async function _initializeTracing(
+  kwargs: Partial<TraceRootConfig> = {}
+): Promise<NodeTracerProvider> {
   // Check if already initialized
   if (_tracerProvider !== null) {
     return _tracerProvider;
@@ -85,6 +113,24 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   }
 
   const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
+
+  // If not in local mode, fetch AWS credentials and update config before creating tracer
+  if (!config.local_mode) {
+    console.log(`[TraceRoot] Fetching AWS credentials...`);
+    const credentials = await fetchAwsCredentials(config);
+    if (credentials) {
+      console.log(`[TraceRoot] AWS credentials fetched successfully`);
+      // Update config with fetched credentials
+      config._name = credentials.hash;
+      config.otlp_endpoint = credentials.otlp_endpoint;
+
+      // Store credentials in config for logger to use later
+      (config as any)._awsCredentials = credentials;
+    } else {
+      console.log(`[TraceRoot] Failed to fetch AWS credentials, using default configuration`);
+    }
+  }
+
   _config = config;
 
   console.log(`[TraceRoot] Initializing with OTLP endpoint: ${config.otlp_endpoint}`);
@@ -113,7 +159,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     })
   );
 
-  // Create trace exporter with debugging
+  // Create trace exporter with debugging - now using the correct endpoint
   const traceExporter = new OTLPTraceExporter({
     url: config.otlp_endpoint,
   });

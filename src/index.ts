@@ -21,14 +21,23 @@ export const VERSION = '0.0.1';
  *
  * @param config Configuration parameters for TraceRoot
  */
-export function init(config?: Partial<TraceRootConfig>): void {
-  _initializeTracing(config);
+export async function init(config?: Partial<TraceRootConfig>): Promise<void> {
+  await _initializeTracing(config);
 
   // Initialize logger after tracer to avoid circular dependency
   const { getConfig } = require('./tracer');
   const configInstance = getConfig();
   if (configInstance) {
-    initializeLogger(configInstance);
+    const logger = await initializeLogger(configInstance);
+    console.log('[DEBUG] Logger initialization completed - CloudWatch transport ready');
+
+    // Verify the logger actually has transports before completing init
+    const transportCount = (logger as any).logger.transports.length;
+    console.log(`[DEBUG] Logger has ${transportCount} transports ready`);
+
+    if (transportCount === 0) {
+      console.warn('[WARNING] Logger has no transports - this may indicate a setup issue');
+    }
   }
 }
 
@@ -57,6 +66,13 @@ export { traceFunction };
 export { get_logger };
 
 /**
+ * Flush all pending logs to their destinations.
+ *
+ * Call this before your application exits to ensure all logs are sent to CloudWatch.
+ */
+export { flushLogger } from './logger';
+
+/**
  * Shutdown tracing and flush any pending spans.
  *
  * Call this before your application exits to ensure all traces are sent.
@@ -74,5 +90,5 @@ export { forceFlush };
 export { TraceRootConfig, TraceOptions };
 export { TraceRootLogger } from './logger';
 
-// Initialize tracing on import (matches Python behavior)
-init();
+// Note: Removed automatic initialization on import to avoid double initialization
+// Users should call init() explicitly in their application
