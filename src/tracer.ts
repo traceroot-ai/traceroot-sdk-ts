@@ -156,6 +156,7 @@ export async function _initializeTracing(
       'service.github_owner': config.github_owner,
       'service.github_repo_name': config.github_repo_name,
       'service.environment': config.environment,
+      'telemetry.sdk.language': 'ts',
     })
   );
 
@@ -332,6 +333,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       span.setAttribute('service.github_owner', _config!.github_owner);
       span.setAttribute('service.github_repo_name', _config!.github_repo_name);
       span.setAttribute('service.version', _config!.github_commit_hash);
+      span.setAttribute('telemetry_sdk_language', 'ts');
 
       // Add parameter attributes if requested
       if (options.traceParams) {
