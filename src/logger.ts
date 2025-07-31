@@ -211,7 +211,6 @@ function getStackTrace(): string {
   if (!stack) return 'unknown';
 
   const stackLines = stack.split('\n');
-  console.log('!!!!!stackLines', stackLines);
   const relevantFrames: string[] = [];
 
   for (let i = 3; i < stackLines.length; i++) {
@@ -319,9 +318,6 @@ export class TraceRootLogger {
       handleExceptions: false,
       handleRejections: false,
     });
-
-    console.log(`[DEBUG] Winston logger created with level: ${this.logger.level}`);
-    console.log(`[DEBUG] Logger default meta:`, this.logger.defaultMeta);
   }
 
   /**
@@ -422,26 +418,17 @@ export class TraceRootLogger {
           secretAccessKey: credentials.aws_secret_access_key,
           sessionToken: credentials.aws_session_token,
         };
-        console.log(`[DEBUG] AWS credentials configured for SDK v3, region: ${credentials.region}`);
       }
 
       const logGroupName = this.config._name || this.config.service_name;
       const logStreamName =
         this.config._sub_name || `${this.config.service_name}-${this.config.environment}`;
-      const awsRegion = credentials?.region || this.config.aws_region;
-
-      console.log(
-        `[TraceRoot] CloudWatch logging enabled - LogGroup: ${logGroupName}, Region: ${awsRegion}`
-      );
 
       // Test CloudWatch access (optional - don't fail if permissions are limited)
       try {
         await this.testCloudWatchAccess(logGroupName, logStreamName, awsConfig);
       } catch (error: any) {
-        console.log(
-          `[DEBUG] CloudWatch access test failed (this is OK if permissions are limited): ${error.message}`
-        );
-        console.log('[DEBUG] Proceeding with winston-cloudwatch-logs transport setup...');
+        console.log(error);
       }
 
       // Create CloudWatch transport using winston-cloudwatch-logs
@@ -457,10 +444,6 @@ export class TraceRootLogger {
           console.error('[ERROR] CloudWatch transport errorHandler:', err);
         },
         messageFormatter: (item: any) => {
-          console.log(
-            `[DEBUG] CloudWatch messageFormatter called for: ${item.level} - ${item.message}`
-          );
-
           // Format according to Python logging format:
           // %(asctime)s;%(levelname)s;%(service_name)s;%(github_commit_hash)s;%(github_owner)s;%(github_repo_name)s;%(environment)s;%(trace_id)s;%(span_id)s;%(stack_trace)s;%(message)s
           const formatValue = (value: any): string => {
@@ -484,7 +467,6 @@ export class TraceRootLogger {
             formatValue(item.message),
           ].join(';');
 
-          console.log(`[DEBUG] CloudWatch formatted message:`, formattedMessage);
           return formattedMessage;
         },
       });
@@ -501,92 +483,16 @@ export class TraceRootLogger {
         }
       });
 
-      cloudWatchTransport.on('logged', (info: any) => {
-        console.log(
-          '[DEBUG] Successfully logged to CloudWatch:',
-          info.level,
-          (info.message || '').substring(0, 50) + '...'
-        );
-      });
-
-      // Add debug event to see what's being sent
-      (cloudWatchTransport as any).on(
-        'logging',
-        (transport: any, level: string, msg: string, meta: any) => {
-          console.log(
-            `[DEBUG] CloudWatch transport attempting to log: ${level} - ${msg.substring(0, 50)} ${meta.stack_trace}...`
-          );
-        }
-      );
-
-      // Add more event listeners to debug the CloudWatch transport
-      ['open', 'close', 'flush', 'rotating'].forEach(eventName => {
-        (cloudWatchTransport as any).on(eventName, (...args: any[]) => {
-          console.log(
-            `[DEBUG] CloudWatch transport event '${eventName}':`,
-            args.length > 0 ? args[0] : 'no args'
-          );
-        });
-      });
-
-      // Test the CloudWatch transport explicitly
-      console.log('[DEBUG] Testing CloudWatch transport directly...');
-      (cloudWatchTransport as any).log(
-        { level: 'info', message: 'Direct transport test' },
-        (err?: any) => {
-          if (err) {
-            console.error('[ERROR] Direct CloudWatch transport test failed:', err);
-          } else {
-            console.log('[DEBUG] Direct CloudWatch transport test succeeded');
-          }
-        }
-      );
-
       this.logger.add(cloudWatchTransport);
 
-      console.log('[DEBUG] CloudWatch transport added successfully');
-      console.log(
-        `[DEBUG] Logger now has ${this.logger.transports.length} transports:`,
-        this.logger.transports.map((t: any) => t.constructor.name)
-      );
-
       // Add checkpoint message AFTER transport is ready
-      console.log('[DEBUG] Sending test message to verify CloudWatch transport...');
       this.logger.info('CloudWatch transport is ready - checkpoint message');
-
-      // Check that the winston logger can send logs
-      console.log('[DEBUG] Testing winston logger directly...');
-      console.log(`[DEBUG] Winston logger level: ${this.logger.level}`);
-      console.log(
-        `[DEBUG] Winston logger transports:`,
-        this.logger.transports.map(
-          (t: any) => `${t.constructor.name}(level: ${t.level || 'inherit'})`
-        )
-      );
-
-      // Test if winston can log at info level
-      const canLogInfo = this.logger.isLevelEnabled('info');
-      console.log(`[DEBUG] Winston can log info level: ${canLogInfo}`);
-
-      // Add a winston logger event listener to see what's happening
-      this.logger.on('data', (info: any) => {
-        console.log(
-          '[DEBUG] Winston logger data event:',
-          info.level,
-          info.message?.substring(0, 50)
-        );
-      });
 
       this.logger.on('error', (err: any) => {
         console.error('[ERROR] Winston logger error:', err);
       });
-
-      // Test winston logger with a direct info log after setup
-      console.log('[DEBUG] Testing winston logger with direct log...');
-      this.logger.info('Winston direct test after setup', { test: true });
     } catch (error: any) {
       console.error('[ERROR] Failed to setup CloudWatch logging:', error.message);
-      this.logger.error('Failed to setup CloudWatch logging', { error: error.message });
     }
   }
 
@@ -599,8 +505,6 @@ export class TraceRootLogger {
     awsConfig: any
   ): Promise<void> {
     try {
-      console.log('[DEBUG] Testing CloudWatch API access...');
-
       const cloudWatchLogs = new CloudWatchLogsClient(awsConfig);
 
       // Test 1: Try to describe log groups (this will test basic permissions)
@@ -611,22 +515,16 @@ export class TraceRootLogger {
             limit: 1,
           })
         );
-        console.log('[DEBUG] CloudWatch API access OK - can describe log groups');
-
         // Check if our log group exists
         const logGroupExists = describeResult.logGroups?.some(
           (lg: any) => lg.logGroupName === logGroupName
         );
-        console.log(`[DEBUG] Log group ${logGroupName} exists: ${logGroupExists}`);
 
         if (!logGroupExists) {
-          console.log('[DEBUG] Creating log group...');
           await cloudWatchLogs.send(new CreateLogGroupCommand({ logGroupName }));
-          console.log('[DEBUG] Log group created successfully');
         }
       } catch (error: any) {
         if (error.name === 'ResourceAlreadyExistsException') {
-          console.log('[DEBUG] Log group already exists');
         } else {
           console.error('[ERROR] Failed to create log group:', error.message);
           throw error;
@@ -635,7 +533,6 @@ export class TraceRootLogger {
 
       // Test 2: Try to create/check log stream
       try {
-        console.log('[DEBUG] Checking log stream...');
         const streamsResult = await cloudWatchLogs.send(
           new DescribeLogStreamsCommand({
             logGroupName,
@@ -647,39 +544,20 @@ export class TraceRootLogger {
         const streamExists = streamsResult.logStreams?.some(
           (ls: any) => ls.logStreamName === logStreamName
         );
-        console.log(`[DEBUG] Log stream ${logStreamName} exists: ${streamExists}`);
-
         if (!streamExists) {
-          console.log('[DEBUG] Creating log stream...');
           await cloudWatchLogs.send(
             new CreateLogStreamCommand({
               logGroupName,
               logStreamName,
             })
           );
-          console.log('[DEBUG] Log stream created successfully');
         }
       } catch (error: any) {
-        if (error.name === 'ResourceAlreadyExistsException') {
-          console.log('[DEBUG] Log stream already exists');
-        } else {
-          console.error('[ERROR] Failed to create log stream:', error.message);
+        if (error.name !== 'ResourceAlreadyExistsException') {
           throw error;
         }
       }
-
-      // Test 3: Verify we can write to the log stream (without sending test logs)
-      try {
-        console.log('[DEBUG] CloudWatch setup completed - ready to accept logs');
-      } catch (error: any) {
-        console.error('[ERROR] CloudWatch setup verification failed:', error.message);
-        throw error;
-      }
-
-      console.log('[DEBUG] CloudWatch access test completed successfully');
     } catch (error: any) {
-      console.error('[ERROR] CloudWatch access test failed:', error.message);
-      console.error('[ERROR] This may indicate permission issues with AWS credentials');
       throw error;
     }
   }
@@ -828,96 +706,70 @@ export class TraceRootLogger {
    */
   async flush(): Promise<void> {
     return new Promise(resolve => {
-      console.log('[DEBUG] Flushing logger...');
-
-      // Force a final log message to ensure all logs are processed
-      this.logger.info('Final flush - ensuring all logs are sent to CloudWatch');
-
-      // Find CloudWatch transport and flush it properly
       const cloudWatchTransports = this.logger.transports.filter(
         (transport: any) => transport.constructor.name === 'WinstonCloudWatch'
       );
 
       if (cloudWatchTransports.length === 0) {
-        console.log('[DEBUG] No CloudWatch transports found, skipping flush');
         setTimeout(() => {
-          console.log('[DEBUG] Logger flush complete');
           resolve();
-        }, 1000);
+        }, 500);
         return;
       }
-
-      console.log(`[DEBUG] Found ${cloudWatchTransports.length} CloudWatch transport(s) to flush`);
 
       let flushedCount = 0;
       const totalTransports = cloudWatchTransports.length;
 
       cloudWatchTransports.forEach((transport: any, index: number) => {
-        console.log(`[DEBUG] Flushing CloudWatch transport ${index + 1}...`);
-
         // Try different flush methods that winston-cloudwatch-logs might support
         if (typeof transport.kthxbye === 'function') {
-          console.log('[DEBUG] Using kthxbye method...');
           transport.kthxbye((error?: any) => {
             if (error) {
               console.error(`[ERROR] CloudWatch transport ${index + 1} flush error:`, error);
-            } else {
-              console.log(`[DEBUG] CloudWatch transport ${index + 1} flushed successfully`);
             }
 
             flushedCount++;
             if (flushedCount === totalTransports) {
-              console.log('[DEBUG] All CloudWatch transports flushed');
               // Give a little extra time for final cleanup
               setTimeout(() => {
-                console.log('[DEBUG] Logger flush complete');
                 resolve();
-              }, 1000);
+              }, 500);
             }
           });
         } else if (typeof transport.flush === 'function') {
-          console.log('[DEBUG] Using flush method...');
           try {
             transport.flush();
-            console.log(`[DEBUG] CloudWatch transport ${index + 1} flush called`);
             flushedCount++;
             if (flushedCount === totalTransports) {
               // Wait for the upload cycle to complete
               setTimeout(() => {
-                console.log('[DEBUG] Logger flush complete');
                 resolve();
-              }, 3000); // Wait for upload cycle
+              }, 500); // Wait for upload cycle
             }
           } catch (error) {
             console.error(`[ERROR] CloudWatch transport ${index + 1} flush error:`, error);
             flushedCount++;
             if (flushedCount === totalTransports) {
               setTimeout(() => {
-                console.log('[DEBUG] Logger flush complete');
                 resolve();
-              }, 1000);
+              }, 500);
             }
           }
         } else {
-          console.log(
-            `[DEBUG] CloudWatch transport ${index + 1} has no flush method, relying on timeout`
-          );
           flushedCount++;
           if (flushedCount === totalTransports) {
             // Fallback: wait for upload cycle
             setTimeout(() => {
-              console.log('[DEBUG] Logger flush complete');
               resolve();
-            }, 3000); // Wait longer for upload cycle
+            }, 500); // Wait longer for upload cycle
           }
         }
       });
 
       // Safety timeout to prevent hanging
       setTimeout(() => {
-        console.log('[DEBUG] Logger flush timeout reached, resolving anyway');
         resolve();
-      }, 10000); // 10 second maximum wait
+      }, 500); // 500ms maximum wait
     });
   }
 }

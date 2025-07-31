@@ -29,11 +29,9 @@ export async function init(config?: Partial<TraceRootConfig>): Promise<void> {
   const configInstance = getConfig();
   if (configInstance) {
     const logger = await initializeLogger(configInstance);
-    console.log('[DEBUG] Logger initialization completed - CloudWatch transport ready');
 
     // Verify the logger actually has transports before completing init
     const transportCount = (logger as any).logger.transports.length;
-    console.log(`[DEBUG] Logger has ${transportCount} transports ready`);
 
     if (transportCount === 0) {
       console.warn('[WARNING] Logger has no transports - this may indicate a setup issue');

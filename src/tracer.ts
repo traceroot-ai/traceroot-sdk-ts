@@ -116,10 +116,8 @@ export async function _initializeTracing(
 
   // If not in local mode, fetch AWS credentials and update config before creating tracer
   if (!config.local_mode) {
-    console.log(`[TraceRoot] Fetching AWS credentials...`);
     const credentials = await fetchAwsCredentials(config);
     if (credentials) {
-      console.log(`[TraceRoot] AWS credentials fetched successfully`);
       // Update config with fetched credentials
       config._name = credentials.hash;
       config.otlp_endpoint = credentials.otlp_endpoint;
@@ -132,10 +130,6 @@ export async function _initializeTracing(
   }
 
   _config = config;
-
-  console.log(`[TraceRoot] Initializing with OTLP endpoint: ${config.otlp_endpoint}`);
-  console.log(`[TraceRoot] Console export enabled: ${config.enable_span_console_export}`);
-  console.log(`[TraceRoot] Local mode: ${config.local_mode}`);
 
   // Test OTLP endpoint connectivity
   if (config.local_mode) {
@@ -165,22 +159,10 @@ export async function _initializeTracing(
     url: config.otlp_endpoint,
   });
 
-  console.log('traceExporter:', traceExporter);
-
   // Add debugging to the exporter
   const originalExport = traceExporter.export.bind(traceExporter);
   traceExporter.export = function (spans: any, resultCallback: any) {
-    console.log(
-      `[DEBUG] Exporting ${spans.length} spans to OTLP:`,
-      spans.map((s: any) => ({
-        name: s.name,
-        traceId: s.spanContext().traceId,
-        spanId: s.spanContext().spanId,
-        eventCount: s.events ? s.events.length : 0,
-      }))
-    );
     return originalExport(spans, (result: any) => {
-      console.log(`[DEBUG] OTLP export result:`, result);
       resultCallback(result);
     });
   };
@@ -216,12 +198,10 @@ export async function _initializeTracing(
           maxQueueSize: 100,
         });
     _tracerProvider.addSpanProcessor(consoleProcessor);
-    console.log(`[TraceRoot] Console span export enabled - spans will be logged`);
   }
 
   // Register the tracer provider globally
   _tracerProvider.register();
-  console.log(`[TraceRoot] TracerProvider initialized successfully`);
 
   return _tracerProvider;
 }
@@ -231,9 +211,7 @@ export async function _initializeTracing(
  */
 export function shutdownTracing(): Promise<void> {
   if (_tracerProvider !== null) {
-    console.log('[TraceRoot] Shutting down and flushing traces...');
     return _tracerProvider.shutdown().then(() => {
-      console.log('[TraceRoot] Traces flushed successfully');
       _tracerProvider = null;
     });
   }
@@ -245,10 +223,7 @@ export function shutdownTracing(): Promise<void> {
  */
 export function forceFlush(): Promise<void> {
   if (_tracerProvider !== null) {
-    console.log('[TraceRoot] Force flushing traces...');
-    return _tracerProvider.forceFlush().then(() => {
-      console.log('[TraceRoot] Traces force flushed successfully');
-    });
+    return _tracerProvider.forceFlush().then(() => {});
   }
   return Promise.resolve();
 }
@@ -342,7 +317,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
 
         // Log parameters if console export is enabled
         if (_config!.enable_span_console_export) {
-          console.log(`[SPAN PARAMS] ${spanName}:`, parameterValues);
+          console.log(`[ PARAMS] ${spanName}:`, parameterValues);
         }
       }
 
