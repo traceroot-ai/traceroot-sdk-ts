@@ -16,7 +16,7 @@ app = FastAPI(title="Simple TraceRoot FastAPI Example")
 connect_fastapi(app)
 
 
-traceroot.trace()
+@traceroot.trace()
 def calculate_sum(numbers: List[int]) -> int:
     """Calculate sum of numbers with tracing"""
     logger.info(f"Calculating sum of {len(numbers)} numbers")
@@ -25,7 +25,7 @@ def calculate_sum(numbers: List[int]) -> int:
     return result
 
 
-traceroot.trace()
+@traceroot.trace()
 async def process_data_async(data: List[int]) -> Dict[str, int]:
     """Process data asynchronously with tracing"""
     logger.info("Starting async data processing")
@@ -40,7 +40,7 @@ async def process_data_async(data: List[int]) -> Dict[str, int]:
     return result
 
 
-traceroot.trace()
+@traceroot.trace()
 def validate_input(numbers: List[int]) -> bool:
     """Validate input numbers"""
     logger.info("Validating input data")
