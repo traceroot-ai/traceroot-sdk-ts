@@ -1,9 +1,17 @@
 {
   "name": "traceroot-sdk-ts",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha.0",
   "description": "TypeScript SDK for TraceRoot tracing and logging",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/traceroot-ai/traceroot-sdk-ts.git"
+  },
+  "homepage": "https://github.com/traceroot-ai/traceroot-sdk-ts#readme",
+  "bugs": {
+    "url": "https://github.com/traceroot-ai/traceroot-sdk-ts/issues"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -12,7 +20,9 @@
     "format": "prettier --write \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
     "lint": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\"",
-    "lint:fix": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" --fix"
+    "lint:fix": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" --fix",
+    "prepublishOnly": "npm run build && npm run lint && npm run format:check",
+    "prepack": "npm run build"
   },
   "keywords": [
     "tracing",
