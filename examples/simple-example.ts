@@ -1,29 +1,10 @@
 import * as traceroot from '../src/index';
 import { forceFlush, shutdownTracing } from '../src/tracer';
 
-// Configuration for the example
-const config: Partial<traceroot.TraceRootConfig> = {
-  service_name: 'js-example',
-  github_owner: 'your-org',
-  github_repo_name: 'your-repo',
-  github_commit_hash: 'abc123def456',
-  environment: 'development',
-
-  // For local testing, set to true
-  local_mode: false,
-  enable_span_console_export: true,
-  enable_log_console_export: true,
-
-  // For AWS mode, uncomment these:
-  // local_mode: false,
-  // token: 'your-traceroot-token-here',
-  // aws_region: 'us-west-2',
-};
-
 // Main example function that handles initialization and execution
 async function main() {
   // Initialize TraceRoot
-  await traceroot.init(config);
+  await traceroot.init();
 
   // Get a logger instance
   const logger = traceroot.get_logger();
@@ -105,6 +86,53 @@ async function main() {
           await simulateError();
         } catch {
           // Error already logged inside simulateError
+        }
+
+        // Example 4: Call API endpoint with proper tracing context propagation
+        try {
+          logger.info('📡 Making API call to /calculate endpoint');
+
+          // Get trace headers to propagate current trace context
+          const traceHeaders = traceroot.getTraceHeaders();
+
+          // Get detailed span information for debugging
+          const spanInfo = traceroot.getActiveSpanInfo();
+
+          let message = `
+          spanInfo: ${JSON.stringify(spanInfo)}
+          traceHeaders: ${JSON.stringify(traceHeaders)}
+          headerCount: ${Object.keys(traceHeaders).length}
+          `;
+
+          logger.debug('🔗 Trace Context Debug: ' + message);
+
+          const response = await fetch('http://localhost:9999/calculate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...traceHeaders, // Spread trace headers to maintain trace correlation
+            },
+            body: JSON.stringify([1, 2, 3, 4, 5]),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          const spanInfo2 = traceroot.getActiveSpanInfo();
+          let message2 = `
+          spanInfo2: ${JSON.stringify(spanInfo2)}
+          traceHeaders2: ${JSON.stringify(traceHeaders)}
+          headerCount2: ${Object.keys(traceHeaders).length}
+          `;
+
+          logger.debug('🔗 Trace Context Debug: ' + message2);
+
+          logger.info('✅ API call completed', { response: result });
+        } catch (error: any) {
+          logger.error('❌ API call failed', { error: error.message });
         }
       } catch (error: any) {
         logger.error('❌ Example failed', { error: error.message });

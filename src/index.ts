@@ -59,6 +59,35 @@ export function trace(options?: TraceOptions) {
 export { traceFunction };
 
 /**
+ * Get trace headers for the current active span to propagate trace context in HTTP requests.
+ * Returns headers that can be used to maintain trace correlation across service boundaries.
+ *
+ * @returns Object containing trace headers (traceparent, x-trace-id, x-span-id, etc.)
+ */
+export { getTraceHeaders } from './tracer';
+
+/**
+ * Get the current active span ID for debugging purposes.
+ *
+ * @returns The span ID as a hex string, or null if no active span
+ */
+export { getSpanId } from './tracer';
+
+/**
+ * Check if the current active span is recording.
+ *
+ * @returns True if there's an active span that is recording, false otherwise
+ */
+export { isRecording } from './tracer';
+
+/**
+ * Get detailed information about the current active span for debugging.
+ *
+ * @returns Object with trace ID, span ID, and recording status
+ */
+export { getActiveSpanInfo } from './tracer';
+
+/**
  * Get a logger instance.
  *
  * @param name Optional logger name

@@ -459,6 +459,55 @@ export function writeAttributesToCurrentSpan(attributes: Record<string, any>): v
 }
 
 /**
+ * Get trace headers for the current active span to propagate trace context in HTTP requests
+ * Returns headers that can be used to maintain trace correlation across service boundaries
+ */
+export function getTraceHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+
+  const span = otelTrace.getActiveSpan();
+  if (!span) {
+    return headers;
+  }
+
+  const spanContext = span.spanContext();
+  if (
+    !spanContext ||
+    !spanContext.traceId ||
+    spanContext.traceId === '00000000000000000000000000000000'
+  ) {
+    return headers;
+  }
+
+  const traceId = spanContext.traceId;
+  const spanId = spanContext.spanId;
+  const traceFlags = spanContext.traceFlags || 0;
+
+  // W3C Trace Context standard headers
+  // Format: 00-{traceId}-{spanId}-{traceFlags}
+  headers['traceparent'] = `00-${traceId}-${spanId}-${traceFlags.toString(16).padStart(2, '0')}`;
+
+  // Add tracestate if available
+  if (spanContext.traceState) {
+    const traceStateString = spanContext.traceState.serialize();
+    if (traceStateString) {
+      headers['tracestate'] = traceStateString;
+    }
+  }
+
+  // Custom headers for easier debugging and compatibility
+  headers['x-trace-id'] = traceId;
+  headers['x-span-id'] = spanId;
+
+  // AWS X-Ray format trace ID for AWS services compatibility
+  if (_config && !_config.local_mode) {
+    headers['x-amzn-trace-id'] = `Root=1-${traceId.substring(0, 8)}-${traceId.substring(8)}`;
+  }
+
+  return headers;
+}
+
+/**
  * Convert function parameters to dictionary for tracing
  */
 function _paramsToDict(
@@ -536,4 +585,66 @@ function _flattenDict(data: Record<string, any>, sep: string = '_'): Record<stri
 
   flatten(data);
   return result;
+}
+
+/**
+ * Get the current active span ID for debugging purposes
+ * Returns the span ID as a hex string, or null if no active span
+ */
+export function getSpanId(): string | null {
+  const span = otelTrace.getActiveSpan();
+  if (!span) {
+    return null;
+  }
+
+  const spanContext = span.spanContext();
+  if (!spanContext || !spanContext.spanId || spanContext.spanId === '0000000000000000') {
+    return null;
+  }
+
+  return spanContext.spanId;
+}
+
+/**
+ * Check if the current active span is recording
+ * Returns true if there's an active span that is recording, false otherwise
+ */
+export function isRecording(): boolean {
+  const span = otelTrace.getActiveSpan();
+  if (!span) {
+    return false;
+  }
+
+  return span.isRecording();
+}
+
+/**
+ * Get detailed information about the current active span for debugging
+ * Returns an object with trace ID, span ID, and recording status
+ */
+export function getActiveSpanInfo(): {
+  traceId: string | null;
+  spanId: string | null;
+  isRecording: boolean;
+  hasActiveSpan: boolean;
+} {
+  const span = otelTrace.getActiveSpan();
+
+  if (!span) {
+    return {
+      traceId: null,
+      spanId: null,
+      isRecording: false,
+      hasActiveSpan: false,
+    };
+  }
+
+  const spanContext = span.spanContext();
+
+  return {
+    traceId: spanContext?.traceId || null,
+    spanId: spanContext?.spanId || null,
+    isRecording: span.isRecording(),
+    hasActiveSpan: true,
+  };
 }
