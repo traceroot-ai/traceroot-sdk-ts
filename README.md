@@ -45,6 +45,20 @@ npm view traceroot-sdk-ts
 npm install traceroot-sdk-ts@alpha
 ```
 
+## Citation
+
+If you find our exploratory TraceRoot useful in your research, please consider citing:
+
+```bibtex
+@article{traceroot_2025,
+  title={TraceRoot Is All You Need for Debugging and Tracing},
+  author={Zecheng Zhang and Xinwei He},
+  year = {2025},
+  publisher = {GitHub},
+  url = {https://github.com/traceroot-ai/traceroot}
+}
+```
+
 ## Contact Us
 
 Please reach out to founders@traceroot.ai or visit [TraceRoot.AI](https://traceroot.ai) if you do not have these credentials or have any questions.
