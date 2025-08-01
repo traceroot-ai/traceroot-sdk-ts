@@ -390,7 +390,7 @@ function getRelativePath(filepath: string, config?: TraceRootConfigImpl): string
       if (repoIndex !== -1) {
         // Take everything after the repo name
         const relativeParts = pathParts.slice(repoIndex + 1);
-        console.log('relativeParts', relativeParts.join('/'));
+
         if (relativeParts.length > 0) {
           return relativeParts.join('/');
         }
@@ -462,8 +462,6 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
 
       // Get a meaningful relative path instead of just the filename
       let relativePath = filepath;
-      console.log('getStackTrace', filepath);
-
       // Process various path formats to get a meaningful relative path
       relativePath = processPathFormat(filepath, config);
 
