@@ -14,10 +14,10 @@ const mockedPath = jest.mocked(path);
 describe('Logger Path Processing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock process.cwd() to return a consistent value
     jest.spyOn(process, 'cwd').mockReturnValue('/Users/test/code/traceroot-sdk-ts');
-    
+
     // Setup basic path mocks
     mockedPath.join.mockImplementation((...args) => args.join('/'));
     mockedPath.dirname.mockImplementation((p) => {
@@ -29,21 +29,21 @@ describe('Logger Path Processing', () => {
       // Simple relative path calculation for testing
       const fromParts = from.split('/').filter(p => p);
       const toParts = to.split('/').filter(p => p);
-      
+
       // Find common base
       let commonLength = 0;
-      while (commonLength < fromParts.length && 
-             commonLength < toParts.length && 
+      while (commonLength < fromParts.length &&
+             commonLength < toParts.length &&
              fromParts[commonLength] === toParts[commonLength]) {
         commonLength++;
       }
-      
+
       // Build relative path
       const upLevels = fromParts.length - commonLength;
       const downPath = toParts.slice(commonLength);
-      
+
       if (upLevels === 0 && downPath.length === 0) return '.';
-      
+
       return downPath.join('/');
     });
   });
@@ -62,7 +62,7 @@ describe('Logger Path Processing', () => {
       processedPath = processedPath.replace(/webpack-internal:\/\/\/\([^)]*\)\//, '');
       // Also handle webpack-internal:/// without parentheses
       processedPath = processedPath.replace(/webpack-internal:\/\/\//, '');
-      
+
       // For webpack paths, try to find the actual file location in the repository
       const actualPath = findActualFilePath(processedPath);
       if (actualPath) {
@@ -91,7 +91,7 @@ describe('Logger Path Processing', () => {
       // Get the current working directory and find the git root
       let currentDir = process.cwd();
       let gitRoot: string | null = null;
-      
+
       // Walk up the directory tree to find .git folder
       while (currentDir !== path.dirname(currentDir)) {
         if (fs.existsSync(path.join(currentDir, '.git'))) {
@@ -100,38 +100,38 @@ describe('Logger Path Processing', () => {
         }
         currentDir = path.dirname(currentDir);
       }
-      
+
       if (!gitRoot) {
         gitRoot = process.cwd();
       }
-      
+
       // First, check if the file exists directly from git root
       const directPath = path.join(gitRoot, relativePath);
       if (fs.existsSync(directPath)) {
         return relativePath;
       }
-      
+
       // Function to recursively search for the file
       function searchForFile(dir: string, targetFile: string, maxDepth = 3, currentDepth = 0): string | null {
         if (currentDepth > maxDepth) return null;
-        
+
         try {
           const items = fs.readdirSync(dir);
-          
+
           for (const item of items) {
             if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
               continue;
             }
-            
+
             const itemPath = path.join(dir, item);
             const stat = fs.statSync(itemPath);
-            
+
             if (stat.isDirectory()) {
               const potentialFile = path.join(itemPath, targetFile);
               if (fs.existsSync(potentialFile)) {
                 return path.relative(gitRoot!, potentialFile);
               }
-              
+
               const found = searchForFile(itemPath, targetFile, maxDepth, currentDepth + 1);
               if (found) return found;
             }
@@ -139,12 +139,12 @@ describe('Logger Path Processing', () => {
         } catch (error) {
           // Skip directories we can't read
         }
-        
+
         return null;
       }
-      
+
       return searchForFile(gitRoot, relativePath);
-      
+
     } catch (error) {
       return null;
     }
@@ -152,7 +152,7 @@ describe('Logger Path Processing', () => {
 
   function getRelativeFromNonAbsolute(filepath: string): string {
     const pathParts = filepath.split('/');
-    
+
     // Look for common project structure indicators
     const projectIndicators = ['src', 'lib', 'app', 'examples', 'test', 'tests', 'dist', 'pages', 'components'];
     for (let i = 0; i < pathParts.length; i++) {
@@ -216,9 +216,9 @@ describe('Logger Path Processing', () => {
     test('should handle webpack-internal RSC paths - complex case', () => {
       // This test demonstrates the complex file resolution
       const input = 'webpack-internal:///(rsc)/./src/app/api/code/route.ts';
-      
+
       const result = processPathFormat(input);
-      
+
       // Should strip webpack-internal prefix
       expect(result).not.toContain('webpack-internal:///');
       // Should contain the core path structure
@@ -228,7 +228,7 @@ describe('Logger Path Processing', () => {
     test('should handle webpack-internal paths without parentheses', () => {
       const input = 'webpack-internal:///src/logger.ts';
       const expected = 'src/logger.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -236,14 +236,14 @@ describe('Logger Path Processing', () => {
     test('should strip webpack-internal prefix correctly', () => {
       const input1 = 'webpack-internal:///(rsc)/./src/components/Button.tsx';
       const input2 = 'webpack-internal:///pages/api/handler.ts';
-      
+
       const result1 = processPathFormat(input1);
       const result2 = processPathFormat(input2);
-      
+
       // Should not contain webpack-internal in results
       expect(result1).not.toContain('webpack-internal:///');
       expect(result2).not.toContain('webpack-internal:///');
-      
+
       // Should contain meaningful paths
       expect(result1).toContain('src/components/Button.tsx');
       expect(result2).toContain('pages/api/handler.ts');
@@ -254,7 +254,7 @@ describe('Logger Path Processing', () => {
     test('should handle ./ prefixed paths', () => {
       const input = './src/components/Button.tsx';
       const expected = 'src/components/Button.tsx';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -262,7 +262,7 @@ describe('Logger Path Processing', () => {
     test('should handle ../ prefixed paths', () => {
       const input = '../lib/utils.ts';
       const expected = 'lib/utils.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -270,7 +270,7 @@ describe('Logger Path Processing', () => {
     test('should handle multiple ../ prefixes', () => {
       const input = '../../app/components/Header.tsx';
       const expected = 'app/components/Header.tsx';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -278,7 +278,7 @@ describe('Logger Path Processing', () => {
     test('should preserve already clean relative paths', () => {
       const input = 'src/utils/helper.js';
       const expected = 'src/utils/helper.js';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -288,7 +288,7 @@ describe('Logger Path Processing', () => {
     test('should detect src directory structure', () => {
       const input = 'some/deep/nested/src/components/Button.tsx';
       const expected = 'src/components/Button.tsx';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -296,7 +296,7 @@ describe('Logger Path Processing', () => {
     test('should detect examples directory structure', () => {
       const input = 'project/root/examples/demo/app.ts';
       const expected = 'examples/demo/app.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -304,7 +304,7 @@ describe('Logger Path Processing', () => {
     test('should detect app directory structure', () => {
       const input = 'nested/folders/app/api/route.ts';
       const expected = 'app/api/route.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -314,7 +314,7 @@ describe('Logger Path Processing', () => {
     test('should handle empty paths', () => {
       const input = '';
       const expected = 'unknown';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -322,7 +322,7 @@ describe('Logger Path Processing', () => {
     test('should handle single filename', () => {
       const input = 'index.ts';
       const expected = 'index.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -330,7 +330,7 @@ describe('Logger Path Processing', () => {
     test('should handle paths without project indicators', () => {
       const input = 'some/random/path/file.ts';
       const expected = 'some/random/path/file.ts';
-      
+
       const result = processPathFormat(input);
       expect(result).toBe(expected);
     });
@@ -343,7 +343,7 @@ describe('Logger Path Processing', () => {
       });
 
       const result = processPathFormat('webpack-internal:///src/test.ts');
-      
+
       // Should have called existsSync to look for .git
       expect(mockedFs.existsSync).toHaveBeenCalledWith(
         expect.stringContaining('.git')
@@ -352,19 +352,19 @@ describe('Logger Path Processing', () => {
 
     test('should fallback when git root not found', () => {
       mockedFs.existsSync.mockReturnValue(false);
-      
+
       const input = 'webpack-internal:///src/test.ts';
       const result = processPathFormat(input);
-      
+
       // Should still process the path even without git root
       expect(result).toBe('src/test.ts');
     });
 
     test('should skip node_modules and .git directories in search', () => {
       mockedFs.readdirSync.mockReturnValue(['src', 'node_modules', '.git', '.env'] as any);
-      
+
       processPathFormat('webpack-internal:///src/test.ts');
-      
+
       // The search function should skip these directories
       expect(mockedFs.readdirSync).toHaveBeenCalled();
     });
@@ -396,7 +396,7 @@ describe('Logger Path Processing', () => {
 
       const input = 'webpack-internal:///src/component.tsx';
       const result = processPathFormat(input);
-      
+
       // Should successfully resolve and strip webpack prefix
       expect(result).not.toContain('webpack-internal:///');
       expect(result).toContain('component.tsx');
