@@ -5,4 +5,4 @@ github_commit_hash: main
 environment: development
 enable_span_console_export: false
 enable_log_console_export: false
-token: "traceroot-********************""
+token: "traceroot-********************"

@@ -204,9 +204,53 @@ function getCallerInfo(): { module: string; function: string; lineno: number } |
 }
 
 /**
+ * Extract path relative to repository root (similar to Python implementation)
+ */
+function getRelativePath(filepath: string, config?: TraceRootConfigImpl): string {
+  const pathParts = filepath.split('/');
+
+  // First try to find the repo name in the path
+  if (config?.github_repo_name) {
+    try {
+      const repoIndex = pathParts.indexOf(config.github_repo_name);
+      if (repoIndex !== -1) {
+        // Take everything after the repo name
+        const relativeParts = pathParts.slice(repoIndex + 1);
+        if (relativeParts.length > 0) {
+          return relativeParts.join('/');
+        }
+      }
+    } catch {
+      // Repo name not found in path, continue to fallback
+    }
+  }
+
+  // Fallback: look for common project structure indicators
+  const projectIndicators = ['src', 'lib', 'app', 'examples', 'test', 'tests', 'dist'];
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    if (projectIndicators.includes(part)) {
+      const relativeParts = pathParts.slice(i);
+      if (relativeParts.length > 0) {
+        return relativeParts.join('/');
+      }
+    }
+  }
+
+  // Final fallback: use last 2-3 parts for context
+  if (pathParts.length >= 3) {
+    return pathParts.slice(-3).join('/');
+  } else if (pathParts.length >= 2) {
+    return pathParts.slice(-2).join('/');
+  } else {
+    return pathParts[pathParts.length - 1] || 'unknown';
+  }
+}
+
+/**
  * Get a clean stack trace showing the call path
  */
-function getStackTrace(): string {
+function getStackTrace(config?: TraceRootConfigImpl): string {
   const stack = new Error().stack;
   if (!stack) return 'unknown';
 
@@ -244,27 +288,9 @@ function getStackTrace(): string {
       // Get a meaningful relative path instead of just the filename
       let relativePath = filepath;
 
-      // If it's an absolute path, try to make it relative to common project roots
+      // If it's an absolute path, try to make it relative to repository root
       if (filepath.startsWith('/')) {
-        // Look for common project indicators and extract path from there
-        const projectIndicators = ['/src/', '/examples/', '/test/', '/tests/', '/lib/', '/dist/'];
-        for (const indicator of projectIndicators) {
-          const index = filepath.indexOf(indicator);
-          if (index !== -1) {
-            relativePath = filepath.substring(index + 1); // +1 to remove the leading slash
-            break;
-          }
-        }
-
-        // If no project indicator found, try to get the last 2-3 path segments
-        if (relativePath === filepath) {
-          const pathParts = filepath.split('/');
-          if (pathParts.length > 2) {
-            relativePath = pathParts.slice(-2).join('/');
-          } else {
-            relativePath = pathParts[pathParts.length - 1];
-          }
-        }
+        relativePath = getRelativePath(filepath, config);
       }
 
       // Skip tracing and logging module frames
@@ -624,7 +650,7 @@ export class TraceRootLogger {
       };
 
       // Add stack trace if provided in meta, otherwise get it
-      attributes['log.stack_trace'] = meta?.stack_trace || getStackTrace();
+      attributes['log.stack_trace'] = meta?.stack_trace || getStackTrace(this.config);
 
       // Add metadata if provided
       if (meta) {
@@ -658,7 +684,7 @@ export class TraceRootLogger {
 
   debug(message: string, meta?: any): void {
     // Capture stack trace at the time of the actual log call
-    const stackTrace = getStackTrace();
+    const stackTrace = getStackTrace(this.config);
     const logData = { ...meta, stack_trace: stackTrace };
     this.addSpanEventDirectly('debug', message, logData);
     this.logger.debug(message, logData);
@@ -667,7 +693,7 @@ export class TraceRootLogger {
 
   info(message: string, meta?: any): void {
     // Capture stack trace at the time of the actual log call
-    const stackTrace = getStackTrace();
+    const stackTrace = getStackTrace(this.config);
     const logData = { ...meta, stack_trace: stackTrace };
     this.addSpanEventDirectly('info', message, logData);
     this.logger.info(message, logData);
@@ -676,7 +702,7 @@ export class TraceRootLogger {
 
   warn(message: string, meta?: any): void {
     // Capture stack trace at the time of the actual log call
-    const stackTrace = getStackTrace();
+    const stackTrace = getStackTrace(this.config);
     const logData = { ...meta, stack_trace: stackTrace };
     this.addSpanEventDirectly('warn', message, logData);
     this.logger.warn(message, logData);
@@ -685,7 +711,7 @@ export class TraceRootLogger {
 
   error(message: string, meta?: any): void {
     // Capture stack trace at the time of the actual log call
-    const stackTrace = getStackTrace();
+    const stackTrace = getStackTrace(this.config);
     const logData = { ...meta, stack_trace: stackTrace };
     this.addSpanEventDirectly('error', message, logData);
     this.logger.error(message, logData);
@@ -694,7 +720,7 @@ export class TraceRootLogger {
 
   critical(message: string, meta?: any): void {
     // Capture stack trace at the time of the actual log call
-    const stackTrace = getStackTrace();
+    const stackTrace = getStackTrace(this.config);
     const logData = { ...meta, level: 'critical', stack_trace: stackTrace };
     this.addSpanEventDirectly('critical', message, logData);
     this.logger.error(message, logData);

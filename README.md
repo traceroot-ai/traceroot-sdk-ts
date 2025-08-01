@@ -29,6 +29,7 @@ npx ts-node --transpile-only examples/simple-example.ts
 ```
 
 Publish to npm
+
 ```bash
 npm login
 npm run build
@@ -75,6 +76,8 @@ Please reach out to founders@traceroot.ai or visit [TraceRoot.AI](https://tracer
 [discord-url]: https://discord.gg/tPyffEZvvJ
 [docs-image]: https://img.shields.io/badge/docs-traceroot.ai-0dbf43
 [docs-url]: https://docs.traceroot.ai
+[npm-image]: https://img.shields.io/npm/v/traceroot-sdk-ts?style=flat-square&logo=npm&logoColor=fff
+[npm-url]: https://www.npmjs.com/package/traceroot-sdk-ts
 [pypi-image]: https://badge.fury.io/py/traceroot.svg
 [pypi-sdk-downloads-image]: https://img.shields.io/pypi/dm/traceroot
 [pypi-sdk-downloads-url]: https://pypi.python.org/pypi/traceroot
@@ -87,5 +90,3 @@ Please reach out to founders@traceroot.ai or visit [TraceRoot.AI](https://tracer
 [xinwei-x-url]: https://x.com/xinwei_97
 [zecheng-x-image]: https://img.shields.io/twitter/follow/zechengzh?style=social
 [zecheng-x-url]: https://x.com/zechengzh
-[npm-image]: https://img.shields.io/npm/v/traceroot-sdk-ts?style=flat-square&logo=npm&logoColor=fff
-[npm-url]:   https://www.npmjs.com/package/traceroot-sdk-ts

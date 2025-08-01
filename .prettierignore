@@ -3,4 +3,4 @@ dist/
 *.log
 .git/
 package-lock.json
-*.md 
+*.md
