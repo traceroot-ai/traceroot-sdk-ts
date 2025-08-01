@@ -204,6 +204,180 @@ function getCallerInfo(): { module: string; function: string; lineno: number } |
 }
 
 /**
+ * Process various path formats to get a meaningful relative path
+ */
+function processPathFormat(filepath: string, config?: TraceRootConfigImpl): string {
+  let processedPath = filepath;
+
+  // Handle webpack-internal paths - remove the webpack-internal prefix and resolve to actual location
+  if (processedPath.includes('webpack-internal:///')) {
+    // Remove webpack-internal:///(rsc)/ or similar prefixes
+    processedPath = processedPath.replace(/webpack-internal:\/\/\/\([^)]*\)\//, '');
+    // Also handle webpack-internal:/// without parentheses
+    processedPath = processedPath.replace(/webpack-internal:\/\/\//, '');
+
+    // For webpack paths, try to find the actual file location in the repository
+    const actualPath = findActualFilePath(processedPath);
+    if (actualPath) {
+      return actualPath;
+    }
+  }
+
+  // Handle paths that start with './' - remove the './' prefix
+  if (processedPath.startsWith('./')) {
+    processedPath = processedPath.substring(2);
+  }
+
+  // Handle paths that start with '../' - remove any number of '../' prefixes
+  processedPath = processedPath.replace(/^(\.\.\/)+/, '');
+
+  // If it's an absolute path (starts with '/'), try to make it relative to repository root
+  if (processedPath.startsWith('/')) {
+    return getRelativePath(processedPath, config);
+  }
+
+  // For relative paths, try to clean them up and find meaningful parts
+  if (processedPath) {
+    return getRelativeFromNonAbsolute(processedPath, config);
+  }
+
+  return processedPath || 'unknown';
+}
+
+/**
+ * Find the actual file path by searching through the repository
+ * This handles webpack-internal paths that need to be resolved to their actual location
+ */
+function findActualFilePath(relativePath: string): string | null {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    // Get the current working directory and find the git root
+    let currentDir = process.cwd();
+    let gitRoot: string | null = null;
+
+    // Walk up the directory tree to find .git folder
+    while (currentDir !== path.dirname(currentDir)) {
+      if (fs.existsSync(path.join(currentDir, '.git'))) {
+        gitRoot = currentDir;
+        break;
+      }
+      currentDir = path.dirname(currentDir);
+    }
+
+    if (!gitRoot) {
+      // If no git root found, use process.cwd() as fallback
+      gitRoot = process.cwd();
+    }
+
+    // Function to recursively search for the file
+    function searchForFile(
+      dir: string,
+      targetFile: string,
+      maxDepth = 3,
+      currentDepth = 0
+    ): string | null {
+      if (currentDepth > maxDepth) return null;
+
+      try {
+        const items = fs.readdirSync(dir);
+
+        for (const item of items) {
+          // Skip node_modules and .git directories
+          if (item === 'node_modules' || item === '.git' || item.startsWith('.')) {
+            continue;
+          }
+
+          const itemPath = path.join(dir, item);
+          const stat = fs.statSync(itemPath);
+
+          if (stat.isDirectory()) {
+            // Check if the target file exists in this directory
+            const potentialFile = path.join(itemPath, targetFile);
+            if (fs.existsSync(potentialFile)) {
+              // Return path relative to git root
+              return path.relative(gitRoot!, potentialFile);
+            }
+
+            // Recursively search subdirectories
+            const found = searchForFile(itemPath, targetFile, maxDepth, currentDepth + 1);
+            if (found) return found;
+          }
+        }
+      } catch (error) {
+        // Skip directories we can't read
+        console.log('searchForFile', error);
+      }
+
+      return null;
+    }
+
+    // First, check if the file exists directly from git root
+    const directPath = path.join(gitRoot, relativePath);
+    if (fs.existsSync(directPath)) {
+      return relativePath;
+    }
+
+    // Search for the file starting from git root
+    const foundPath = searchForFile(gitRoot, relativePath);
+    return foundPath;
+  } catch (error) {
+    console.log('findActualFilePath', error);
+    // If anything fails, return null to fall back to original processing
+    return null;
+  }
+}
+
+/**
+ * Handle relative/non-absolute paths to extract meaningful parts
+ */
+function getRelativeFromNonAbsolute(filepath: string, config?: TraceRootConfigImpl): string {
+  const pathParts = filepath.split('/');
+
+  // First try to find the repo name in the path
+  if (config?.github_repo_name) {
+    try {
+      const repoIndex = pathParts.indexOf(config.github_repo_name);
+      if (repoIndex !== -1) {
+        // Take everything after the repo name
+        const relativeParts = pathParts.slice(repoIndex + 1);
+        if (relativeParts.length > 0) {
+          return relativeParts.join('/');
+        }
+      }
+    } catch {
+      // Repo name not found in path, continue to fallback
+    }
+  }
+
+  // Look for common project structure indicators
+  const projectIndicators = [
+    'src',
+    'lib',
+    'app',
+    'examples',
+    'test',
+    'tests',
+    'dist',
+    'pages',
+    'components',
+  ];
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    if (projectIndicators.includes(part)) {
+      const relativeParts = pathParts.slice(i);
+      if (relativeParts.length > 0) {
+        return relativeParts.join('/');
+      }
+    }
+  }
+
+  // If no indicators found, return the original path (it's already relative)
+  return filepath;
+}
+
+/**
  * Extract path relative to repository root (similar to Python implementation)
  */
 function getRelativePath(filepath: string, config?: TraceRootConfigImpl): string {
@@ -216,6 +390,7 @@ function getRelativePath(filepath: string, config?: TraceRootConfigImpl): string
       if (repoIndex !== -1) {
         // Take everything after the repo name
         const relativeParts = pathParts.slice(repoIndex + 1);
+        console.log('relativeParts', relativeParts.join('/'));
         if (relativeParts.length > 0) {
           return relativeParts.join('/');
         }
@@ -287,11 +462,10 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
 
       // Get a meaningful relative path instead of just the filename
       let relativePath = filepath;
+      console.log('getStackTrace', filepath);
 
-      // If it's an absolute path, try to make it relative to repository root
-      if (filepath.startsWith('/')) {
-        relativePath = getRelativePath(filepath, config);
-      }
+      // Process various path formats to get a meaningful relative path
+      relativePath = processPathFormat(filepath, config);
 
       // Skip tracing and logging module frames
       if (
