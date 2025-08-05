@@ -53,6 +53,7 @@
     "@opentelemetry/resources": "^1.28.0",
     "@opentelemetry/sdk-node": "^0.53.0",
     "@opentelemetry/sdk-trace-base": "^1.28.0",
+    "@opentelemetry/sdk-trace-node": "^1.28.0",
     "@opentelemetry/semantic-conventions": "^1.36.0",
     "axios": "^1.6.0",
     "winston": "^3.11.0",
