@@ -16,7 +16,7 @@ const config: TraceRootConfigFile = {
   environment: process.env.NODE_ENV || 'development',
 
   // Token configuration
-  token: process.env.TRACEROOT_TOKEN || 'traceroot-be9fd8e3b30c4b21baef4ea7888e599c',
+  token: process.env.TRACEROOT_TOKEN || 'traceroot-c5286e51db294e6d8a7d1ca4d8f5dbc8',
 
   // Whether to enable console export of spans and logs
   enable_span_console_export: true,
