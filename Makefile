@@ -6,3 +6,7 @@ format:
 test:
 	npm run test
 	npx tsc --noEmit
+
+alpha:
+	npm version prerelease --preid=alpha
+	npm publish --tag alpha
