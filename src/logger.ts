@@ -10,7 +10,7 @@ import {
   DescribeLogGroupsCommand,
   DescribeLogStreamsCommand,
 } from '@aws-sdk/client-cloudwatch-logs';
-import WinstonCloudWatch from 'winston-cloudwatch-logs';
+import WinstonCloudWatch from 'winston-cloudwatch';
 import { trace as otelTrace } from '@opentelemetry/api';
 import { TraceRootConfigImpl } from './config';
 
@@ -611,12 +611,11 @@ export class TraceRootLogger {
         `[TraceRoot] Setting up CloudWatch transport for ${logGroupName}/${logStreamName}`
       );
 
-      // Create CloudWatch transport using winston-cloudwatch-logs
+      // Create CloudWatch transport using winston-cloudwatch
       const cloudWatchTransport = new WinstonCloudWatch({
         logGroupName: logGroupName,
         logStreamName: logStreamName,
-        // Use the winston-cloudwatch-logs credential format
-        awsOptions: awsConfig, // Pass the entire config object
+        awsOptions: awsConfig, // Pass the AWS configuration
         level: 'debug', // Explicitly set log level
         jsonMessage: false, // Disable JSON formatting to use our custom formatter
         uploadRate: 2000, // Upload every 2 seconds

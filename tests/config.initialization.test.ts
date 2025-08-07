@@ -17,9 +17,7 @@ jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
   CloudWatchLogsClient: jest.fn(),
 }));
 
-jest.mock('winston-cloudwatch-logs', () => ({
-  default: jest.fn(),
-}));
+jest.mock('winston-cloudwatch', () => jest.fn());
 
 const mockConfig = {
   service_name: 'test-service',

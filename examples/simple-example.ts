@@ -118,7 +118,6 @@ class TraceRootExample {
 
 async function main() {
   // TraceRoot auto-initializes when the module is imported (if config file exists)
-  // No need to call autoInitialize() manually unless you want to override the config
   const example = new TraceRootExample();
   await example.runExample();
 }

@@ -57,7 +57,7 @@
     "@opentelemetry/semantic-conventions": "^1.36.0",
     "axios": "^1.6.0",
     "winston": "^3.11.0",
-    "winston-cloudwatch-logs": "^0.1.2",
+    "winston-cloudwatch": "^6.3.0",
     "yaml": "^2.3.4"
   }
 }
