@@ -50,6 +50,7 @@ interface AwsCredentials {
   aws_session_token: string;
   region: string;
   hash: string;
+  expiration_utc: Date;
   otlp_endpoint: string;
 }
 

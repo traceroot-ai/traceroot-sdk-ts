@@ -20,6 +20,7 @@ interface AwsCredentials {
   aws_session_token: string;
   region: string;
   hash: string;
+  expiration_utc: Date;
   otlp_endpoint: string;
 }
 
@@ -490,6 +491,37 @@ export class TraceRootLogger {
   private logger: winston.Logger;
   private config: TraceRootConfigImpl;
   private loggerName: string;
+  private credentialsRefreshPromise: Promise<AwsCredentials | null> | null = null;
+  private cloudWatchTransport: WinstonCloudWatch | null = null;
+
+  /**
+   * Format log message according to Python logging format:
+   * %(asctime)s;%(levelname)s;%(service_name)s;%(github_commit_hash)s;%(github_owner)s;%(github_repo_name)s;%(environment)s;%(trace_id)s;%(span_id)s;%(stack_trace)s;%(message)s
+   */
+  private formatCloudWatchMessage(item: any): string {
+    const formatValue = (value: any): string => {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      return String(value);
+    };
+
+    const formattedMessage = [
+      formatValue(item.timestamp),
+      formatValue(item.level?.toUpperCase()),
+      formatValue(item.service_name),
+      formatValue(item.github_commit_hash),
+      formatValue(item.github_owner),
+      formatValue(item.github_repo_name),
+      formatValue(item.environment),
+      formatValue(item.trace_id),
+      formatValue(item.span_id),
+      formatValue(item.stack_trace),
+      formatValue(item.message),
+    ].join(';');
+
+    return formattedMessage;
+  }
 
   private constructor(config: TraceRootConfigImpl, name?: string) {
     this.config = config;
@@ -524,6 +556,148 @@ export class TraceRootLogger {
     const logger = new TraceRootLogger(config, name);
     logger.setupTransports();
     return logger;
+  }
+
+  /**
+   * Check if AWS credentials are expired and refresh if needed
+   * Returns the current valid credentials or null if no credentials available
+   */
+  private async checkAndRefreshCredentials(): Promise<AwsCredentials | null> {
+    // If we're in local mode, no credentials needed
+    if (this.config.local_mode) {
+      return null;
+    }
+
+    // Get current credentials
+    let credentials: AwsCredentials | null = (this.config as any)._awsCredentials || null;
+
+    if (!credentials) {
+      return null;
+    }
+
+    // Check if credentials are expired (10 minutes before actual expiration)
+    const now = new Date();
+    const expirationTime = new Date(credentials.expiration_utc);
+    const bufferTime = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+    if (now.getTime() >= expirationTime.getTime() - bufferTime) {
+      console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
+
+      // If there's already a refresh in progress, wait for it
+      if (this.credentialsRefreshPromise) {
+        return await this.credentialsRefreshPromise;
+      }
+
+      // Start a new refresh
+      this.credentialsRefreshPromise = this.refreshCredentials();
+      try {
+        const newCredentials = await this.credentialsRefreshPromise;
+        return newCredentials;
+      } finally {
+        this.credentialsRefreshPromise = null;
+      }
+    }
+
+    return credentials;
+  }
+
+  /**
+   * Recreate CloudWatch transport with new credentials
+   */
+  private recreateCloudWatchTransport(credentials: AwsCredentials): void {
+    try {
+      // Create new AWS configuration with updated credentials
+      const awsConfig: any = {
+        region: credentials.region || this.config.aws_region,
+        credentials: {
+          accessKeyId: credentials.aws_access_key_id,
+          secretAccessKey: credentials.aws_secret_access_key,
+          sessionToken: credentials.aws_session_token,
+        },
+      };
+
+      const logGroupName = this.config._name || this.config.service_name;
+      const logStreamName =
+        this.config._sub_name || `${this.config.service_name}-${this.config.environment}`;
+
+      // Create new CloudWatch transport with updated credentials
+      const newCloudWatchTransport = new WinstonCloudWatch({
+        logGroupName: logGroupName,
+        logStreamName: logStreamName,
+        awsOptions: awsConfig,
+        level: 'debug',
+        jsonMessage: true,
+        uploadRate: 2000,
+        errorHandler: (err: any) => {
+          console.error('[ERROR] CloudWatch transport errorHandler:', err);
+        },
+        messageFormatter: (item: any) => this.formatCloudWatchMessage(item),
+      });
+
+      // Add error handling for the new transport
+      newCloudWatchTransport.on('error', (error: any) => {
+        console.error('[ERROR] CloudWatch transport error:', error.message);
+        console.error('[ERROR] CloudWatch error details:', error);
+        if (error.code) {
+          console.error('[ERROR] CloudWatch error code:', error.code);
+        }
+        if (error.statusCode) {
+          console.error('[ERROR] CloudWatch status code:', error.statusCode);
+        }
+      });
+
+      // Add the new transport to the logger
+      this.logger.add(newCloudWatchTransport);
+
+      // Update the reference to the new transport
+      this.cloudWatchTransport = newCloudWatchTransport;
+
+      console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
+    } catch (error: any) {
+      console.error('[TraceRoot] Failed to recreate CloudWatch transport:', error.message);
+    }
+  }
+
+  /**
+   * Refresh AWS credentials by calling the verify API
+   */
+  private async refreshCredentials(): Promise<AwsCredentials | null> {
+    if (!this.config.token) {
+      console.log('[TraceRoot] No token provided, cannot refresh credentials');
+      return null;
+    }
+
+    try {
+      const apiUrl = `https://api.test.traceroot.ai/v1/verify/credentials?token=${encodeURIComponent(this.config.token)}`;
+
+      // Use fetch for async HTTP request
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const credentialsData = (await response.json()) as AwsCredentials;
+
+      // Update config with new credentials
+      this.config._name = credentialsData.hash;
+      this.config.otlp_endpoint = credentialsData.otlp_endpoint;
+      (this.config as any)._awsCredentials = credentialsData;
+
+      // Recreate CloudWatch transport with new credentials
+      this.recreateCloudWatchTransport(credentialsData);
+
+      return credentialsData;
+    } catch (error: any) {
+      console.error('[TraceRoot] Failed to refresh AWS credentials:', error.message);
+      return null;
+    }
   }
 
   private setupTransports(): void {
@@ -583,9 +757,6 @@ export class TraceRootLogger {
       // For synchronous initialization, use stored credentials only
       // If no credentials available, skip CloudWatch setup
       if (!credentials) {
-        console.log(
-          '[TraceRoot] No AWS credentials available for CloudWatch, using console transport only'
-        );
         return;
       }
 
@@ -606,13 +777,8 @@ export class TraceRootLogger {
       const logStreamName =
         this.config._sub_name || `${this.config.service_name}-${this.config.environment}`;
 
-      // Skip CloudWatch access test for synchronous initialization
-      console.log(
-        `[TraceRoot] Setting up CloudWatch transport for ${logGroupName}/${logStreamName}`
-      );
-
       // Create CloudWatch transport using winston-cloudwatch
-      const cloudWatchTransport = new WinstonCloudWatch({
+      this.cloudWatchTransport = new WinstonCloudWatch({
         logGroupName: logGroupName,
         logStreamName: logStreamName,
         awsOptions: awsConfig, // Pass the AWS configuration
@@ -622,36 +788,11 @@ export class TraceRootLogger {
         errorHandler: (err: any) => {
           console.error('[ERROR] CloudWatch transport errorHandler:', err);
         },
-        messageFormatter: (item: any) => {
-          // Format according to Python logging format:
-          // %(asctime)s;%(levelname)s;%(service_name)s;%(github_commit_hash)s;%(github_owner)s;%(github_repo_name)s;%(environment)s;%(trace_id)s;%(span_id)s;%(stack_trace)s;%(message)s
-          const formatValue = (value: any): string => {
-            if (value === null || value === undefined) {
-              return '';
-            }
-            return String(value);
-          };
-
-          const formattedMessage = [
-            formatValue(item.timestamp),
-            formatValue(item.level?.toUpperCase()),
-            formatValue(item.service_name),
-            formatValue(item.github_commit_hash),
-            formatValue(item.github_owner),
-            formatValue(item.github_repo_name),
-            formatValue(item.environment),
-            formatValue(item.trace_id),
-            formatValue(item.span_id),
-            formatValue(item.stack_trace),
-            formatValue(item.message),
-          ].join(';');
-
-          return formattedMessage;
-        },
+        messageFormatter: (item: any) => this.formatCloudWatchMessage(item),
       });
 
       // Add comprehensive error handling for CloudWatch transport
-      cloudWatchTransport.on('error', (error: any) => {
+      this.cloudWatchTransport.on('error', (error: any) => {
         console.error('[ERROR] CloudWatch transport error:', error.message);
         console.error('[ERROR] CloudWatch error details:', error);
         if (error.code) {
@@ -662,7 +803,7 @@ export class TraceRootLogger {
         }
       });
 
-      this.logger.add(cloudWatchTransport);
+      this.logger.add(this.cloudWatchTransport);
 
       // Add checkpoint message AFTER transport is ready
       this.logger.info('CloudWatch transport is ready - checkpoint message');
@@ -876,52 +1017,92 @@ export class TraceRootLogger {
     }
   }
 
-  debug(messageOrObj: string | any, ...args: any[]): void {
+  async debug(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
-    // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('debug', message, logData);
+
+    if (this.config.local_mode) {
+      this.logger.debug(message, logData);
+      this.incrementSpanLogCount('num_debug_logs');
+      return;
+    }
+
+    await this.checkAndRefreshCredentials();
+
     this.logger.debug(message, logData);
     this.incrementSpanLogCount('num_debug_logs');
   }
 
-  info(messageOrObj: string | any, ...args: any[]): void {
+  async info(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
-    // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('info', message, logData);
+
+    if (this.config.local_mode) {
+      this.logger.info(message, logData);
+      this.incrementSpanLogCount('num_info_logs');
+      return;
+    }
+
+    await this.checkAndRefreshCredentials();
+
     this.logger.info(message, logData);
     this.incrementSpanLogCount('num_info_logs');
   }
 
-  warn(messageOrObj: string | any, ...args: any[]): void {
+  async warn(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
-    // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('warn', message, logData);
+
+    if (this.config.local_mode) {
+      this.logger.warn(message, logData);
+      this.incrementSpanLogCount('num_warning_logs');
+      return;
+    }
+
+    await this.checkAndRefreshCredentials();
+
     this.logger.warn(message, logData);
     this.incrementSpanLogCount('num_warning_logs');
   }
 
-  error(messageOrObj: string | any, ...args: any[]): void {
+  async error(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
-    // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('error', message, logData);
+
+    if (this.config.local_mode) {
+      this.logger.error(message, logData);
+      this.incrementSpanLogCount('num_error_logs');
+      return;
+    }
+
+    await this.checkAndRefreshCredentials();
+
     this.logger.error(message, logData);
     this.incrementSpanLogCount('num_error_logs');
   }
 
-  critical(messageOrObj: string | any, ...args: any[]): void {
+  async critical(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
-    // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, level: 'critical', stack_trace: stackTrace };
     this.addSpanEventDirectly('critical', message, logData);
+
+    if (this.config.local_mode) {
+      this.logger.error(message, logData);
+      this.incrementSpanLogCount('num_critical_logs');
+      return;
+    }
+
+    await this.checkAndRefreshCredentials();
+
     this.logger.error(message, logData);
     this.incrementSpanLogCount('num_critical_logs');
   }
