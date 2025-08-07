@@ -1,130 +1,105 @@
-import { readFileSync, readdirSync, existsSync, statSync } from 'fs';
-import { join, dirname } from 'path';
-import { parse } from 'yaml';
-import { TraceRootConfig } from '../config';
+import { TraceRootConfig, TraceRootConfigFile } from '../config';
+import {
+  findTypescriptConfig,
+  loadTypescriptConfig,
+  loadTypescriptConfigSync,
+} from './configLoader';
 
 /**
- * Find and load the .traceroot-config.yaml file.
+ * Find and load configuration from TypeScript config file.
  *
- * Searches the current directory and parent/subdirectories for the configuration file.
- *
- * @returns Dictionary containing the configuration, or null if no file found.
+ * @returns Configuration object or null if no config found
  */
-export function findTracerootConfig(): Partial<TraceRootConfig> | null {
-  const configFilename = '.traceroot-config.yaml';
-
-  // Check current working directory
-  const currentPath = process.cwd();
-  const configPath = join(currentPath, configFilename);
-
-  if (existsSync(configPath)) {
+export async function findAndLoadConfig(): Promise<{
+  config: Partial<TraceRootConfig>;
+  configFile?: TraceRootConfigFile;
+  source: 'typescript';
+} | null> {
+  // Try to find a TypeScript config file
+  const tsConfigPath = findTypescriptConfig();
+  if (tsConfigPath) {
     try {
-      const configContent = readFileSync(configPath, 'utf8');
-      const configData = parse(configContent);
-      return configData || {};
+      const configFile = await loadTypescriptConfig(tsConfigPath);
+      if (configFile) {
+        // Apply environment-specific overrides if present
+        const finalConfigFile = applyEnvironmentConfig(configFile);
+
+        // Extract the base config (excluding TypeScript-specific properties)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { init, autoInit, integrations, environments, ...baseConfig } = finalConfigFile;
+
+        return {
+          config: baseConfig,
+          configFile: finalConfigFile,
+          source: 'typescript',
+        };
+      }
     } catch (error) {
-      throw new Error(`Error reading config file ${configPath}: ${error}`);
+      console.warn(`[TraceRoot] Failed to load TypeScript config: ${error}`);
     }
   }
-
-  // Check subfolders for config file up to 4 levels
-  const subFolders = listSubFolders(4, configFilename, currentPath);
-  for (const foundPath of subFolders) {
-    try {
-      const configContent = readFileSync(foundPath, 'utf8');
-      const configData = parse(configContent);
-      return configData || {};
-    } catch (error) {
-      throw new Error(`Error reading config file ${foundPath}: ${error}`);
-    }
-  }
-
-  // Check parent folders for config file up to 4 levels
-  const parentFolders = listParentFolders(4, configFilename, currentPath);
-  for (const foundPath of parentFolders) {
-    try {
-      const configContent = readFileSync(foundPath, 'utf8');
-      const configData = parse(configContent);
-      return configData || {};
-    } catch (error) {
-      throw new Error(`Error reading config file ${foundPath}: ${error}`);
-    }
-  }
-
   return null;
 }
 
 /**
- * Search through subdirectories up to the specified level for files matching the name.
+ * Find and load configuration from TypeScript config file (synchronous).
+ *
+ * @returns Configuration object or null if no config found
  */
-function listSubFolders(level: number, name: string, startPath: string): string[] {
-  const matches: string[] = [];
-
-  function searchLevel(currentPath: string, currentLevel: number) {
-    if (currentLevel > level) {
-      return;
-    }
-
+export function findAndLoadConfigSync(): {
+  config: Partial<TraceRootConfig>;
+  configFile?: TraceRootConfigFile;
+  source: 'typescript';
+} | null {
+  // Try to find a TypeScript config file
+  const tsConfigPath = findTypescriptConfig();
+  if (tsConfigPath) {
     try {
-      const items = readdirSync(currentPath);
+      const configFile = loadTypescriptConfigSync(tsConfigPath);
+      if (configFile) {
+        // Apply environment-specific overrides if present
+        const finalConfigFile = applyEnvironmentConfig(configFile);
 
-      for (const item of items) {
-        const itemPath = join(currentPath, item);
+        // Extract the base config (excluding TypeScript-specific properties)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { init, autoInit, integrations, environments, ...baseConfig } = finalConfigFile;
 
-        if (item === name) {
-          matches.push(itemPath);
-        }
-
-        try {
-          const stats = statSync(itemPath);
-          if (stats.isDirectory() && currentLevel < level) {
-            searchLevel(itemPath, currentLevel + 1);
-          }
-        } catch {
-          // Skip items we can't access
-          continue;
-        }
+        return {
+          config: baseConfig,
+          configFile: finalConfigFile,
+          source: 'typescript',
+        };
       }
-    } catch {
-      // Skip directories we can't access
-      return;
+    } catch (error) {
+      console.warn(`[TraceRoot] Failed to load TypeScript config: ${error}`);
     }
   }
-
-  searchLevel(startPath, 0);
-  return matches;
+  return null;
 }
 
 /**
- * Search through parent directories up to the specified level for files matching the name.
+ * Applies environment-specific configuration overrides
+ * Automatically detects environment from NODE_ENV or TRACEROOT_ENV
  */
-function listParentFolders(level: number, name: string, startPath: string): string[] {
-  const matches: string[] = [];
-  let currentPath = startPath;
+function applyEnvironmentConfig(config: TraceRootConfigFile): TraceRootConfigFile {
+  const environment = process.env.NODE_ENV || process.env.TRACEROOT_ENV;
 
-  for (let i = 0; i <= level; i++) {
-    try {
-      const items = readdirSync(currentPath);
-
-      for (const item of items) {
-        if (item === name) {
-          matches.push(join(currentPath, item));
-        }
-      }
-    } catch {
-      // Skip directories we can't access
-    }
-
-    // Move to parent directory
-    if (i < level) {
-      const parent = dirname(currentPath);
-      if (parent === currentPath) {
-        // Reached filesystem root
-        break;
-      }
-      currentPath = parent;
-    }
+  if (!config.environments || !environment) {
+    return config;
   }
 
-  return matches;
+  const envOverrides = config.environments[environment];
+  if (!envOverrides) {
+    return config;
+  }
+
+  // Merge environment-specific overrides
+  return {
+    ...config,
+    ...envOverrides,
+    // Preserve the original environments and init function
+    environments: config.environments,
+    init: config.init,
+    autoInit: config.autoInit,
+  };
 }

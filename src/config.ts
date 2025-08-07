@@ -38,6 +38,36 @@ export interface TraceRootConfig {
   _sub_name?: string;
 }
 
+/**
+ * Extended configuration interface for TypeScript config files
+ * Allows for initialization functions and advanced configuration
+ */
+export interface TraceRootConfigFile extends Partial<TraceRootConfig> {
+  /**
+   * Optional initialization function that will be called after TraceRoot is initialized
+   * This allows for custom setup logic similar to Sentry's approach
+   */
+  init?: (config: TraceRootConfigImpl) => Promise<void> | void;
+
+  /**
+   * Whether to automatically initialize TraceRoot when this config is loaded
+   * Defaults to true
+   */
+  autoInit?: boolean;
+
+  /**
+   * Custom integrations or middleware to apply
+   */
+  integrations?: Array<any>;
+
+  /**
+   * Environment-specific configuration overrides
+   */
+  environments?: {
+    [env: string]: Partial<TraceRootConfig>;
+  };
+}
+
 export class TraceRootConfigImpl implements TraceRootConfig {
   service_name: string;
   github_owner: string;

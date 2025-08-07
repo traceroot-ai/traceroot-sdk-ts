@@ -12,7 +12,6 @@ import {
 } from '@aws-sdk/client-cloudwatch-logs';
 import WinstonCloudWatch from 'winston-cloudwatch-logs';
 import { trace as otelTrace } from '@opentelemetry/api';
-import axios from 'axios';
 import { TraceRootConfigImpl } from './config';
 
 interface AwsCredentials {
@@ -519,15 +518,15 @@ export class TraceRootLogger {
   }
 
   /**
-   * Static async factory method to create and initialize logger
+   * Static factory method to create and initialize logger (synchronous)
    */
-  static async create(config: TraceRootConfigImpl, name?: string): Promise<TraceRootLogger> {
+  static create(config: TraceRootConfigImpl, name?: string): TraceRootLogger {
     const logger = new TraceRootLogger(config, name);
-    await logger.setupTransports();
+    logger.setupTransports();
     return logger;
   }
 
-  private async setupTransports(): Promise<void> {
+  private setupTransports(): void {
     // Console transport for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
       this.logger.add(
@@ -570,39 +569,24 @@ export class TraceRootLogger {
 
     // Setup appropriate transport based on mode
     if (!this.config.local_mode) {
-      await this.setupCloudWatchTransport();
+      this.setupCloudWatchTransport();
     } else {
       this.setupLocalTransport();
     }
   }
 
-  private async fetchAwsCredentials(): Promise<AwsCredentials | null> {
-    try {
-      const response = await axios.get('https://api.test.traceroot.ai/v1/verify/credentials', {
-        params: { token: this.config.token },
-        headers: { 'Content-Type': 'application/json' },
-      });
-      return response.data;
-    } catch (error: any) {
-      this.logger.error('Failed to fetch AWS credentials', { error: error.message });
-      return null;
-    }
-  }
-
-  private async setupCloudWatchTransport(): Promise<void> {
+  private setupCloudWatchTransport(): void {
     try {
       // Check if credentials were already fetched during tracer initialization
       let credentials: AwsCredentials | null = (this.config as any)._awsCredentials || null;
 
-      // If no credentials stored, fetch them (fallback for edge cases)
+      // For synchronous initialization, use stored credentials only
+      // If no credentials available, skip CloudWatch setup
       if (!credentials) {
-        credentials = await this.fetchAwsCredentials();
-
-        if (credentials) {
-          // Update config with fetched credentials
-          this.config._name = credentials.hash;
-          this.config.otlp_endpoint = credentials.otlp_endpoint;
-        }
+        console.log(
+          '[TraceRoot] No AWS credentials available for CloudWatch, using console transport only'
+        );
+        return;
       }
 
       // Create AWS SDK v3 client configuration
@@ -622,12 +606,10 @@ export class TraceRootLogger {
       const logStreamName =
         this.config._sub_name || `${this.config.service_name}-${this.config.environment}`;
 
-      // Test CloudWatch access (optional - don't fail if permissions are limited)
-      try {
-        await this.testCloudWatchAccess(logGroupName, logStreamName, awsConfig);
-      } catch (error: any) {
-        console.log(error);
-      }
+      // Skip CloudWatch access test for synchronous initialization
+      console.log(
+        `[TraceRoot] Setting up CloudWatch transport for ${logGroupName}/${logStreamName}`
+      );
 
       // Create CloudWatch transport using winston-cloudwatch-logs
       const cloudWatchTransport = new WinstonCloudWatch({
@@ -976,10 +958,10 @@ export class TraceRootLogger {
 let _globalLogger: TraceRootLogger | null = null;
 
 /**
- * Initialize the global logger instance
+ * Initialize the global logger instance (synchronous)
  */
-export async function initializeLogger(config: TraceRootConfigImpl): Promise<TraceRootLogger> {
-  _globalLogger = await TraceRootLogger.create(config);
+export function initializeLogger(config: TraceRootConfigImpl): TraceRootLogger {
+  _globalLogger = TraceRootLogger.create(config);
   return _globalLogger;
 }
 
@@ -988,7 +970,7 @@ export async function initializeLogger(config: TraceRootConfigImpl): Promise<Tra
  */
 export function get_logger(name?: string): TraceRootLogger {
   if (_globalLogger === null) {
-    throw new Error('Logger not initialized. Call traceroot.init() first.');
+    throw new Error('Logger not initialized. Call TraceRoot.init() first.');
   }
 
   if (name === undefined) {

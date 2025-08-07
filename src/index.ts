@@ -15,20 +15,20 @@ import { TraceRootConfig } from './config';
 export const VERSION = '0.0.1';
 
 /**
- * Initialize TraceRoot tracing and logging.
+ * Initialize TraceRoot tracing and logging (synchronous).
  *
  * This should be called once at the start of your application.
  *
  * @param config Configuration parameters for TraceRoot
  */
-export async function init(config?: Partial<TraceRootConfig>): Promise<void> {
-  await _initializeTracing(config);
+export function init(config?: Partial<TraceRootConfig>): void {
+  _initializeTracing(config);
 
   // Initialize logger after tracer to avoid circular dependency
   const { getConfig } = require('./tracer');
   const configInstance = getConfig();
   if (configInstance) {
-    const logger = await initializeLogger(configInstance);
+    const logger = initializeLogger(configInstance);
 
     // Verify the logger actually has transports before completing init
     const transportCount = (logger as any).logger.transports.length;
@@ -114,8 +114,23 @@ export { shutdownTracing };
 export { forceFlush };
 
 // Re-export types for convenience
-export { TraceRootConfig, TraceOptions };
+export { TraceRootConfig, TraceRootConfigFile } from './config';
+export { TraceOptions } from './tracer';
 export { TraceRootLogger } from './logger';
 
-// Note: Removed automatic initialization on import to avoid double initialization
-// Users should call init() explicitly in their application
+// Auto-initialization utilities
+export { autoInitialize, shouldAutoInitialize } from './autoInit';
+
+// Import for internal use
+import { autoInitialize as _autoInitialize, shouldAutoInitialize } from './autoInit';
+
+// Auto-initialize TraceRoot if config file exists and conditions are met
+// This happens when the module is imported (now synchronous)
+if (shouldAutoInitialize()) {
+  try {
+    _autoInitialize();
+  } catch (error) {
+    // Silently fail auto-initialization - users can still call init() manually
+    console.debug('[TraceRoot] Auto-initialization failed:', error);
+  }
+}

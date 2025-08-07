@@ -9,8 +9,6 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { TraceRootConfig, TraceRootConfigImpl } from './config';
-import { findTracerootConfig } from './utils/config';
-import axios from 'axios';
 
 // Global state
 let _tracerProvider: NodeTracerProvider | null = null;
@@ -56,15 +54,31 @@ interface AwsCredentials {
 }
 
 /**
- * Fetch AWS credentials from TraceRoot API
+ * Fetch AWS credentials from TraceRoot API (synchronous using sync HTTP)
  */
-async function fetchAwsCredentials(config: TraceRootConfigImpl): Promise<AwsCredentials | null> {
+function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredentials | null {
+  if (!config.token) {
+    console.log('[TraceRoot] No token provided, skipping AWS credentials fetch');
+    return null;
+  }
+
   try {
-    const response = await axios.get('https://api.test.traceroot.ai/v1/verify/credentials', {
-      params: { token: config.token },
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return response.data;
+    const apiUrl = `https://api.test.traceroot.ai/v1/verify/credentials?token=${encodeURIComponent(config.token)}`;
+
+    // Create a synchronous HTTP request using child_process
+    const { execSync } = require('child_process');
+
+    try {
+      const curlCommand = `curl -s -H "Content-Type: application/json" "${apiUrl}"`;
+      const response = execSync(curlCommand, { timeout: 5000, encoding: 'utf8' });
+      const credentials = JSON.parse(response);
+
+      console.log('[TraceRoot] Successfully fetched AWS credentials');
+      return credentials;
+    } catch (error: any) {
+      console.log(`[TraceRoot] Failed to fetch AWS credentials with curl: ${error.message}`);
+      return null;
+    }
   } catch (error: any) {
     console.log(`[TraceRoot] Failed to fetch AWS credentials: ${error.message}`);
     return null;
@@ -72,29 +86,19 @@ async function fetchAwsCredentials(config: TraceRootConfigImpl): Promise<AwsCred
 }
 
 /**
- * Initialize TraceRoot tracing and logging.
+ * Initialize TraceRoot tracing and logging (synchronous).
  *
  * This is the main entry point for setting up tracing and logging.
  * Call this once at the start of your application.
  */
-export async function _initializeTracing(
-  kwargs: Partial<TraceRootConfig> = {}
-): Promise<NodeTracerProvider> {
+export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
   // Check if already initialized
   if (_tracerProvider !== null) {
+    console.log('[TraceRoot] Tracer already initialized, returning existing instance');
     return _tracerProvider;
   }
-
-  // Load configuration from YAML file first
-  const yamlConfig = findTracerootConfig();
-
-  // Merge YAML config with kwargs (kwargs take precedence)
-  let configParams: Partial<TraceRootConfig>;
-  if (yamlConfig) {
-    configParams = { ...yamlConfig, ...kwargs };
-  } else {
-    configParams = kwargs;
-  }
+  // Merge file config with kwargs (kwargs take precedence)
+  let configParams: Partial<TraceRootConfig> = kwargs;
 
   if (Object.keys(configParams).length === 0) {
     throw new Error('No configuration provided for TraceRoot initialization');
@@ -116,7 +120,7 @@ export async function _initializeTracing(
 
   // If not in local mode, fetch AWS credentials and update config before creating tracer
   if (!config.local_mode) {
-    const credentials = await fetchAwsCredentials(config);
+    const credentials = fetchAwsCredentialsSync(config);
     if (credentials) {
       // Update config with fetched credentials
       config._name = credentials.hash;
@@ -125,7 +129,7 @@ export async function _initializeTracing(
       // Store credentials in config for logger to use later
       (config as any)._awsCredentials = credentials;
     } else {
-      console.log(`[TraceRoot] Failed to fetch AWS credentials, using default configuration`);
+      console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
   }
 
@@ -162,7 +166,15 @@ export async function _initializeTracing(
   // Add debugging to the exporter
   const originalExport = traceExporter.export.bind(traceExporter);
   traceExporter.export = function (spans: any, resultCallback: any) {
+    console.log(
+      `[TraceRoot] Exporting ${spans.length} spans to OTLP endpoint: ${config.otlp_endpoint}`
+    );
     return originalExport(spans, (result: any) => {
+      if (result.code === 0) {
+        console.log(`[TraceRoot] Successfully exported ${spans.length} spans`);
+      } else {
+        console.log(`[TraceRoot] Failed to export spans:`, result.error);
+      }
       resultCallback(result);
     });
   };
@@ -174,6 +186,9 @@ export async function _initializeTracing(
 
   // Create span processor - in local mode, use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
+  console.log(
+    `[TraceRoot] Using ${config.local_mode ? 'SimpleSpanProcessor' : 'BatchSpanProcessor'} for OTLP export`
+  );
   const spanProcessor = config.local_mode
     ? new SimpleSpanProcessor(traceExporter)
     : new BatchSpanProcessor(traceExporter, {

@@ -26,6 +26,7 @@ npm run build
 npm run format
 npm run lint --fix
 npx ts-node --transpile-only examples/simple-example.ts
+npm run test # Run tests
 ```
 
 Publish to npm
