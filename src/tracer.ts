@@ -179,11 +179,6 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     });
   };
 
-  // Create and configure the tracer provider
-  _tracerProvider = new NodeTracerProvider({
-    resource: resource,
-  });
-
   // Create span processor - in local mode, use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
   console.log(
@@ -198,8 +193,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
         maxQueueSize: 100,
       });
 
-  // Add the span processor to the tracer provider
-  _tracerProvider.addSpanProcessor(spanProcessor);
+  // Prepare span processors array
+  const spanProcessors = [spanProcessor];
 
   // If console export is enabled, add console span processor with same type as main processor
   if (config.enable_span_console_export) {
@@ -212,8 +207,14 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
           scheduledDelayMillis: 500,
           maxQueueSize: 100,
         });
-    _tracerProvider.addSpanProcessor(consoleProcessor);
+    spanProcessors.push(consoleProcessor);
   }
+
+  // Create and configure the tracer provider with span processors
+  _tracerProvider = new NodeTracerProvider({
+    resource: resource,
+    spanProcessors: spanProcessors,
+  });
 
   // Register the tracer provider globally
   _tracerProvider.register();
