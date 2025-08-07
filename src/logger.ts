@@ -617,7 +617,7 @@ export class TraceRootLogger {
         logStreamName: logStreamName,
         awsOptions: awsConfig, // Pass the AWS configuration
         level: 'debug', // Explicitly set log level
-        jsonMessage: false, // Disable JSON formatting to use our custom formatter
+        jsonMessage: true, // Disable JSON formatting to use our custom formatter
         uploadRate: 2000, // Upload every 2 seconds
         errorHandler: (err: any) => {
           console.error('[ERROR] CloudWatch transport errorHandler:', err);
@@ -761,6 +761,47 @@ export class TraceRootLogger {
     }
   }
 
+  /**
+   * Process log arguments to support Pino-style structured logging
+   * Supports only these clean patterns:
+   * - logger.info('message')
+   * - logger.info({ metadata }, 'message')
+   * - logger.info({ metadata })
+   */
+  private processLogArgs(
+    messageOrObj: string | any,
+    ...args: any[]
+  ): { message: string; metadata: any } {
+    let message: string;
+    let metadata: any = {};
+
+    // If first argument is a string, treat it as the message
+    if (typeof messageOrObj === 'string') {
+      message = messageOrObj;
+      // No additional processing for string-first pattern
+    } else if (
+      typeof messageOrObj === 'object' &&
+      messageOrObj !== null &&
+      !Array.isArray(messageOrObj)
+    ) {
+      // First argument is an object (metadata)
+      metadata = { ...messageOrObj };
+
+      // Check if second argument is a string message
+      if (args.length === 1 && typeof args[0] === 'string') {
+        message = args[0];
+      } else {
+        // Object only, use default message
+        message = 'Log entry';
+      }
+    } else {
+      // Fallback for other types (arrays, primitives, etc.)
+      message = String(messageOrObj);
+    }
+
+    return { message, metadata };
+  }
+
   private addSpanEventDirectly(level: string, message: string, meta?: any): void {
     // In local mode, store log events to be added before span ends
     if (!this.config.local_mode) {
@@ -835,46 +876,51 @@ export class TraceRootLogger {
     }
   }
 
-  debug(message: string, meta?: any): void {
+  debug(messageOrObj: string | any, ...args: any[]): void {
+    const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
-    const logData = { ...meta, stack_trace: stackTrace };
+    const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('debug', message, logData);
     this.logger.debug(message, logData);
     this.incrementSpanLogCount('num_debug_logs');
   }
 
-  info(message: string, meta?: any): void {
+  info(messageOrObj: string | any, ...args: any[]): void {
+    const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
-    const logData = { ...meta, stack_trace: stackTrace };
+    const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('info', message, logData);
     this.logger.info(message, logData);
     this.incrementSpanLogCount('num_info_logs');
   }
 
-  warn(message: string, meta?: any): void {
+  warn(messageOrObj: string | any, ...args: any[]): void {
+    const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
-    const logData = { ...meta, stack_trace: stackTrace };
+    const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('warn', message, logData);
     this.logger.warn(message, logData);
     this.incrementSpanLogCount('num_warning_logs');
   }
 
-  error(message: string, meta?: any): void {
+  error(messageOrObj: string | any, ...args: any[]): void {
+    const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
-    const logData = { ...meta, stack_trace: stackTrace };
+    const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('error', message, logData);
     this.logger.error(message, logData);
     this.incrementSpanLogCount('num_error_logs');
   }
 
-  critical(message: string, meta?: any): void {
+  critical(messageOrObj: string | any, ...args: any[]): void {
+    const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     // Capture stack trace at the time of the actual log call
     const stackTrace = getStackTrace(this.config);
-    const logData = { ...meta, level: 'critical', stack_trace: stackTrace };
+    const logData = { ...metadata, level: 'critical', stack_trace: stackTrace };
     this.addSpanEventDirectly('critical', message, logData);
     this.logger.error(message, logData);
     this.incrementSpanLogCount('num_critical_logs');

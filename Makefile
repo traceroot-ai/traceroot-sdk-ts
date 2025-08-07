@@ -5,3 +5,4 @@ format:
 
 test:
 	npm run test
+	npx tsc --noEmit

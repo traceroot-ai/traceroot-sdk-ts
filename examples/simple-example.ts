@@ -48,7 +48,7 @@ class TraceRootExample {
   @traceroot.trace({ spanName: 'run_example_orchestrator' })
   async runExample(): Promise<void> {
     try {
-      this.logger.info('🚀 Starting example');
+      this.logger.info({ requestId: '123' }, '🚀 Starting example');
 
       // Example 1: Async function with tracing and parameter tracking
       const result1 = await this.processData('test-data', 5);
