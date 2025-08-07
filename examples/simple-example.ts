@@ -10,7 +10,7 @@ class TraceRootExample {
     // Simulate some work
     await this.delay(100);
     const result = `Processed: ${data} (${count} times)`;
-    this.logger.info('✅ Async processing result in processData', { result });
+    this.logger.info('✅ Async processing result in processData: ' + result);
     return result;
   }
 
@@ -26,11 +26,11 @@ class TraceRootExample {
     traceReturnValue: true,
   })
   calculateSum(numbers: number[]): number {
-    this.logger.info('🔢 Starting sum calculation in calculateSum', { inputNumbers: numbers });
+    this.logger.info('🔢 Starting sum calculation in calculateSum: ' + numbers.join(', '));
     const sum = numbers.reduce((acc, num) => {
       return acc + num;
     }, 0);
-    this.logger.info('✅ Sum calculation completed in calculateSum', { result: sum });
+    this.logger.info('✅ Sum calculation completed in calculateSum: ' + sum);
     return sum;
   }
 
@@ -40,7 +40,7 @@ class TraceRootExample {
     try {
       throw new Error('This is a simulated error for testing');
     } catch (_error: any) {
-      this.logger.error('✅ Caught expected error in simulateError', _error.message);
+      this.logger.error('✅ Caught expected error in simulateError: ' + _error.message);
     }
   }
 
@@ -57,7 +57,7 @@ class TraceRootExample {
       // Example 2: Sync function with tracing and return value tracking
       const numbers = [1, 2, 3, 4, 5];
       const sum = this.calculateSum(numbers);
-      this.logger.info('✅ Sum calculation completed in runExample', { result: sum });
+      this.logger.info('✅ Sum calculation completed in runExample: ' + sum);
 
       // Example 3: Error handling with tracing
       try {
@@ -106,12 +106,12 @@ class TraceRootExample {
 
         this.logger.debug('🔗 Trace Context Debug: ' + message2);
 
-        this.logger.info('✅ API call completed', { response: result });
+        this.logger.info('✅ API call completed: ' + result);
       } catch (error: any) {
-        this.logger.error('❌ API call failed', { error: error.message });
+        this.logger.error('❌ API call failed: ' + error.message);
       }
     } catch (error: any) {
-      this.logger.error('❌ Example failed', { error: error.message });
+      this.logger.error('❌ Example failed: ' + error.message);
     }
   }
 }
