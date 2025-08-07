@@ -4,27 +4,22 @@ import { forceFlush, shutdownTracing } from '../src/tracer';
 class TraceRootExample {
   private logger = traceroot.get_logger();
 
-  // Example using @trace decorator for async function (similar to Python @traceroot.trace())
   // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
   @traceroot.trace()
   async processData(data: string, count: number): Promise<string> {
     // Simulate some work
     await this.delay(100);
-
     const result = `Processed: ${data} (${count} times)`;
     this.logger.info('✅ Async processing result in processData', { result });
-
     return result;
   }
 
-  // Example using @trace decorator with custom span name
   // @ts-ignore
   @traceroot.trace({ spanName: 'delay_execution' })
   async delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // Example using @trace decorator for sync function with parameter and return value tracing
   // @ts-ignore
   @traceroot.trace({
     traceParams: true,
@@ -39,7 +34,6 @@ class TraceRootExample {
     return sum;
   }
 
-  // Example with error tracing using @trace decorator
   // @ts-ignore
   @traceroot.trace({ spanName: 'error_simulation' })
   async simulateError(): Promise<void> {
@@ -50,7 +44,6 @@ class TraceRootExample {
     }
   }
 
-  // Example of the main orchestrator function with @trace decorator
   // @ts-ignore
   @traceroot.trace({ spanName: 'run_example_orchestrator' })
   async runExample(): Promise<void> {
@@ -95,15 +88,13 @@ class TraceRootExample {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...traceHeaders, // Spread trace headers to maintain trace correlation
+            ...traceHeaders,
           },
           body: JSON.stringify([1, 2, 3, 4, 5]),
         });
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         const result = await response.json();
 
         const spanInfo2 = traceroot.getActiveSpanInfo();
@@ -126,17 +117,12 @@ class TraceRootExample {
 }
 
 async function main() {
-  // Initialize TraceRoot
-  await traceroot.init();
-
-  // Create an instance of our example class
+  // TraceRoot auto-initializes when the module is imported (if config file exists)
+  // No need to call autoInitialize() manually unless you want to override the config
   const example = new TraceRootExample();
-
-  // Run the example
   await example.runExample();
 }
 
-// Execute the main function
 main()
   .then(async () => {
     await traceroot.flushLogger();
