@@ -83,7 +83,7 @@ describe('TraceRoot Logger Structured Logging', () => {
     };
 
     logger = TraceRootLogger.create(mockConfig);
-    
+
     // Get reference to the mocked winston logger
     const winston = require('winston');
     mockWinstonLogger = winston.createLogger();
@@ -126,9 +126,9 @@ describe('TraceRoot Logger Structured Logging', () => {
       );
       expect(mockWinstonLogger.error).toHaveBeenCalledWith(
         'Critical message',
-        expect.objectContaining({ 
+        expect.objectContaining({
           level: 'critical',
-          stack_trace: expect.any(String) 
+          stack_trace: expect.any(String)
         })
       );
     });
@@ -190,7 +190,7 @@ describe('TraceRoot Logger Structured Logging', () => {
           stack_trace: expect.any(String),
         })
       );
-      
+
       // The object should NOT be merged since string comes first
       expect(mockWinstonLogger.info).not.toHaveBeenCalledWith(
         expect.anything(),
@@ -261,7 +261,7 @@ describe('TraceRoot Logger Structured Logging', () => {
           stack_trace: expect.any(String),
         })
       );
-      
+
       // Should NOT contain the metadata
       expect(mockWinstonLogger.info).not.toHaveBeenCalledWith(
         expect.anything(),
