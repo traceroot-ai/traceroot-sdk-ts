@@ -230,7 +230,7 @@ describe('TraceRoot Logger Credential Expiration', () => {
 
       // Fetch should be called but fail
       expect(global.fetch).toHaveBeenCalled();
-      
+
       // Logger should still work (fallback to console transport)
       expect(mockWinstonLogger.info).toHaveBeenCalled();
     });
