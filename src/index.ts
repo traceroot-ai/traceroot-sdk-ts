@@ -125,6 +125,12 @@ export { shutdownTracing };
 export { forceFlushTracer };
 
 /**
+ * Async version of forceFlushTracer that surfaces errors to callers.
+ * Use this when you want to handle flush failures explicitly.
+ */
+export { forceFlushTracerAsync } from './tracer';
+
+/**
  * Synchronous version of forceFlushTracer.
  * Starts the flush process but doesn't wait for completion.
  */
@@ -162,9 +168,7 @@ import { autoInitialize as _autoInitialize, shouldAutoInitialize } from './autoI
 // Auto-initialize TraceRoot if config file exists and conditions are met
 // This happens when the module is imported (now synchronous)
 if (shouldAutoInitialize()) {
-  console.log('shouldAutoInitialize()', shouldAutoInitialize());
   try {
-    console.log('Auto-initializing TraceRoot');
     _autoInitialize();
   } catch (error) {
     // Silently fail auto-initialization - users can still call init() manually
