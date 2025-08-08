@@ -188,6 +188,7 @@ npm install
 npm run build
 npm run format
 npm run lint --fix
+npx prettier --write [JS-CONFIG-FILE]
 npm run test # Run tests
 ```
 
