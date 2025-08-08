@@ -3,21 +3,9 @@ import { forceFlush, shutdownTracing } from '../src/tracer';
 
 class TraceRootExample {
   private logger = traceroot.get_logger();
-  constructor() {
-    this.processData = traceroot.traceFunction(this.processData.bind(this));
-    this.delay = traceroot.traceFunction(this.delay.bind(this), { spanName: 'delay_execution' });
-    this.calculateSum = traceroot.traceFunction(this.calculateSum.bind(this), {
-      traceParams: true,
-      traceReturnValue: true,
-    });
-    this.simulateError = traceroot.traceFunction(this.simulateError.bind(this), {
-      spanName: 'error_simulation',
-    });
-    this.runExample = traceroot.traceFunction(this.runExample.bind(this), {
-      spanName: 'run_example_orchestrator',
-    });
-  }
 
+  // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
+  @traceroot.trace()
   async processData(data: string, count: number): Promise<string> {
     // Simulate some work
     await this.delay(100);
@@ -26,10 +14,17 @@ class TraceRootExample {
     return result;
   }
 
+  // @ts-ignore
+  @traceroot.trace({ spanName: 'delay_execution' })
   async delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  // @ts-ignore
+  @traceroot.trace({
+    traceParams: true,
+    traceReturnValue: true,
+  })
   calculateSum(numbers: number[]): number {
     this.logger.info('🔢 Starting sum calculation in calculateSum: ' + numbers.join(', '));
     const sum = numbers.reduce((acc, num) => {
@@ -39,6 +34,8 @@ class TraceRootExample {
     return sum;
   }
 
+  // @ts-ignore
+  @traceroot.trace({ spanName: 'error_simulation' })
   async simulateError(): Promise<void> {
     try {
       throw new Error('This is a simulated error for testing');
@@ -47,6 +44,8 @@ class TraceRootExample {
     }
   }
 
+  // @ts-ignore
+  @traceroot.trace({ spanName: 'run_example_orchestrator' })
   async runExample(): Promise<void> {
     try {
       this.logger.info({ requestId: '123' }, '🚀 Starting example');

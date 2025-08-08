@@ -18,18 +18,108 @@
 
 # TraceRoot SDK for TypeScript
 
-A TypeScript SDK for TraceRoot tracing and logging, providing the same functionality as the Python version with OpenTelemetry tracing and Winston logging.
+A TypeScript SDK for TraceRoot tracing and logging.
+
+## Introduction
+
+This SDK allows you to trace functions and utilizes TraceRoot's own logger within the TraceRoot trace. It captures all the context designed for advanced debugging of AI agents.
+
+### OpenTelemetry
+
+The trace is built upon OpenTelemetry, and the traces will be sent to TraceRoot's own endpoint.
+
+### Winston
+
+The logger is based on Winston, designed for integration with CloudWatch. And currently the logs will be stored in AWS.
+
+## Installation
+
+```bash
+npm install traceroot-sdk-ts
+```
+
+## Configuration
+
+At first you need to create a `traceroot.config.ts` file in the root of your project:
+
+```typescript
+import type { TraceRootConfigFile } from 'traceroot-sdk-ts/src/config';
+
+const config: TraceRootConfigFile = {
+  // Basic service configuration
+  service_name: 'ts-example',
+  github_owner: 'traceroot-ai',
+  github_repo_name: 'traceroot-sdk-ts',
+  github_commit_hash: 'main',
+
+  // Your environment configuration such as development, staging, production
+  environment: 'development',
+
+  // Token configuration
+  // This is the token you can generate from the TraceRoot.AI website
+  token: 'traceroot-***********************',
+
+  // Whether to enable console export of spans and logs
+  enable_span_console_export: true,
+  enable_log_console_export: true,
+
+  // Local mode that whether to store all data locally
+  local_mode: false,
+};
+export default config;
+```
+
+## Usage
+
+Then you can use the `traceroot.traceFunction` to trace your functions:
+
+```typescript
+import * as traceroot from 'traceroot-sdk-ts';
+
+const greet = traceroot.traceFunction(function greet(name: string): string {
+  const logger = traceroot.get_logger();
+  logger.info(`Greeting inside traced function: ${name}`);
+  return `Hello, ${name}!`;
+}, { spanName: 'greet' });
+
+greet('world');
+```
+
+Or just use the decorator:
+
+```typescript
+import * as traceroot from 'traceroot-sdk-ts';
+
+@traceroot.trace({ spanName: 'greet' })
+function greet(name: string): string {
+  const logger = traceroot.get_logger();
+  logger.info(`Greeting inside traced function: ${name}`);
+  return `Hello, ${name}!`;
+}
+
+greet('world');
+```
+
+More details can be found in the [examples](examples).
+
+You can run following examples after modifying the `traceroot.config.ts` file:
+
+```bash
+npx ts-node --transpile-only examples/simple-example.ts
+npx ts-node --transpile-only examples/simple-example-decorator.ts
+```
+
+## Development
 
 ```bash
 npm install
 npm run build
 npm run format
 npm run lint --fix
-npx ts-node --transpile-only examples/simple-example.ts
 npm run test # Run tests
 ```
 
-Publish to npm
+### Publish to npm
 
 ```bash
 npm login
