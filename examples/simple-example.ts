@@ -7,7 +7,7 @@ async function main() {
     async function greet(name: string): Promise<string> {
       logger.info(`Greeting inside traced function: ${name}`);
       // Simulate some async work
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       return `Hello, ${name}!`;
     },
     { spanName: 'greet' }
