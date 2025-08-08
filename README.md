@@ -130,6 +130,9 @@ npm pack --dry-run
 # For next alpha version
 npm version prerelease --preid=alpha  # 0.0.1-alpha.1
 npm publish --tag alpha
+npm dist-tag ls traceroot-sdk-ts
+# Add the latest version to the latest tag
+npm dist-tag add traceroot-sdk-ts@0.0.1-alpha.5 latest
 
 npm view traceroot-sdk-ts
 
