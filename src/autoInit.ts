@@ -24,21 +24,30 @@ export function autoInitialize(): boolean {
     const shouldAutoInit = configFile?.autoInit !== false;
 
     if (shouldAutoInit) {
-      console.log('[TraceRoot] Auto-initialization enabled - configResult details:');
-      console.log('  Source:', configResult.source);
-      console.log('  Config:', JSON.stringify(configResult.config, null, 2));
-      console.log('  ConfigFile:', JSON.stringify(configResult.configFile, null, 2));
+      const { _initializeTracing, getConfig } = require('./tracer');
+      const { initializeLogger } = require('./logger');
 
-      // Import init from index.ts to initialize everything (tracer + logger)
-      const { init } = require('./index');
-      init(configResult.config); // Pass the loaded TypeScript configuration
+      // Initialize tracer
+      _initializeTracing(configResult.config);
+
+      // Initialize logger after tracer to avoid circular dependency
+      const configInstance = getConfig();
+      if (configInstance) {
+        const logger = initializeLogger(configInstance);
+
+        // Verify the logger actually has transports before completing init
+        const transportCount = (logger as any).logger.transports.length;
+
+        if (transportCount === 0) {
+          console.warn('[TraceRoot] Logger has no transports - this may indicate a setup issue');
+        }
+      }
       return true;
     }
 
-    console.debug('[TraceRoot] Auto-initialization disabled in config');
     return false;
   } catch (error) {
-    console.warn('[TraceRoot] Auto-initialization failed:', error);
+    void error;
     return false;
   }
 }

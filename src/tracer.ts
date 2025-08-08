@@ -13,6 +13,7 @@ import { TraceRootConfig, TraceRootConfigImpl } from './config';
 // Global state
 let _tracerProvider: NodeTracerProvider | null = null;
 let _config: TraceRootConfigImpl | null = null;
+let _isShuttingDown: boolean = false;
 
 export interface TraceOptions {
   spanName?: string;
@@ -73,15 +74,13 @@ function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredentials | 
       const curlCommand = `curl -s -H "Content-Type: application/json" "${apiUrl}"`;
       const response = execSync(curlCommand, { timeout: 5000, encoding: 'utf8' });
       const credentials = JSON.parse(response);
-
-      console.log('[TraceRoot] Successfully fetched AWS credentials');
       return credentials;
     } catch (error: any) {
-      console.log(`[TraceRoot] Failed to fetch AWS credentials with curl: ${error.message}`);
+      void error;
       return null;
     }
   } catch (error: any) {
-    console.log(`[TraceRoot] Failed to fetch AWS credentials: ${error.message}`);
+    void error;
     return null;
   }
 }
@@ -105,16 +104,18 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     throw new Error('No configuration provided for TraceRoot initialization');
   }
 
-  // Validate required fields
-  if (
-    !configParams.service_name ||
-    !configParams.github_owner ||
-    !configParams.github_repo_name ||
-    !configParams.github_commit_hash
-  ) {
-    throw new Error(
-      'Missing required configuration fields: service_name, github_owner, github_repo_name, github_commit_hash'
-    );
+  // Fill in missing fields with some default values if not provided
+  if (!configParams.service_name) {
+    configParams.service_name = 'N/A';
+  }
+  if (!configParams.github_owner) {
+    configParams.github_owner = 'N/A';
+  }
+  if (!configParams.github_repo_name) {
+    configParams.github_repo_name = 'N/A';
+  }
+  if (!configParams.github_commit_hash) {
+    configParams.github_commit_hash = 'N/A';
   }
 
   const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
@@ -136,8 +137,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   _config = config;
 
-  // Test OTLP endpoint connectivity
-  if (config.local_mode) {
+  // Test OTLP endpoint connectivity (skip in tests to avoid async issues)
+  if (config.local_mode && process.env.NODE_ENV !== 'test') {
     const axios = require('axios');
     axios
       .get(config.otlp_endpoint.replace('/v1/traces', '/health'))
@@ -167,24 +168,13 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // Add debugging to the exporter
   const originalExport = traceExporter.export.bind(traceExporter);
   traceExporter.export = function (spans: any, resultCallback: any) {
-    console.log(
-      `[TraceRoot] Exporting ${spans.length} spans to OTLP endpoint: ${config.otlp_endpoint}`
-    );
     return originalExport(spans, (result: any) => {
-      if (result.code === 0) {
-        console.log(`[TraceRoot] Successfully exported ${spans.length} spans`);
-      } else {
-        console.log(`[TraceRoot] Failed to export spans:`, result.error);
-      }
       resultCallback(result);
     });
   };
 
   // Create span processor - in local mode, use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
-  console.log(
-    `[TraceRoot] Using ${config.local_mode ? 'SimpleSpanProcessor' : 'BatchSpanProcessor'} for OTLP export`
-  );
   const spanProcessor = config.local_mode
     ? new SimpleSpanProcessor(traceExporter)
     : new BatchSpanProcessor(traceExporter, {
@@ -220,29 +210,109 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // Register the tracer provider globally
   _tracerProvider.register();
 
+  // Set up automatic cleanup on process exit
+  setupProcessExitHandlers();
+
   return _tracerProvider;
 }
 
 /**
- * Shutdown tracing and flush any pending spans.
+ * Force flush all pending spans immediately without shutting down.
+ * Keeps the tracer running after flushing.
  */
-export function shutdownTracing(): Promise<void> {
+export function forceFlushTracer(): Promise<void> {
   if (_tracerProvider !== null) {
-    return _tracerProvider.shutdown().then(() => {
-      _tracerProvider = null;
-    });
+    return _tracerProvider.forceFlush().then(() => {});
   }
   return Promise.resolve();
 }
 
 /**
- * Force flush any pending spans immediately.
+ * Synchronous version of forceFlushTracer.
+ * Starts the flush process but doesn't wait for completion.
  */
-export function forceFlush(): Promise<void> {
-  if (_tracerProvider !== null) {
-    return _tracerProvider.forceFlush().then(() => {});
+export function forceFlushTracerSync(): void {
+  const flushPromise = forceFlushTracer();
+  flushPromise
+    .then(() => {})
+    .catch((error: any) => {
+      void error;
+    });
+}
+
+/**
+ * Shutdown tracing and flush any pending spans.
+ * Flushes pending spans AND shuts down the tracer completely.
+ */
+export function shutdownTracing(): Promise<void> {
+  if (_tracerProvider !== null && !_isShuttingDown) {
+    _isShuttingDown = true;
+    const shutdownPromise = _tracerProvider.shutdown();
+    return shutdownPromise
+      .then(() => {
+        _tracerProvider = null;
+        _isShuttingDown = false;
+      })
+      .catch((error: any) => {
+        // Ensure cleanup happens even if shutdown fails
+        _tracerProvider = null;
+        _isShuttingDown = false;
+        throw error;
+      });
   }
   return Promise.resolve();
+}
+
+/**
+ * Synchronous version of shutdownTracing that forces process exit.
+ * Use this when you want simple sync-style shutdown without dealing with Promises.
+ */
+export function shutdownTracingSync(): void {
+  // Start the async shutdown process
+  const shutdownPromise = shutdownTracing();
+
+  // For sync usage: schedule process exit after a reasonable delay
+  // This ensures cleanup has time to complete while providing sync semantics
+  setTimeout(() => {
+    process.exit(0);
+  }, 100); // Give enough time for BatchSpanProcessor cleanup
+
+  // Also handle the promise to log completion
+  shutdownPromise
+    .then(() => {})
+    .catch((error: any) => {
+      void error;
+    });
+}
+
+// Track if we've already set up process handlers to avoid duplicates
+let _processHandlersSetup = false;
+
+/**
+ * Set up automatic cleanup on process exit signals
+ */
+function setupProcessExitHandlers(): void {
+  // Only set up handlers once to avoid memory leaks in tests
+  if (_processHandlersSetup || process.env.NODE_ENV === 'test') {
+    return;
+  }
+
+  const cleanup = () => {
+    if (_tracerProvider !== null) {
+      _tracerProvider = null;
+    }
+  };
+
+  // Handle various exit scenarios - only once
+  process.once('exit', cleanup);
+  process.once('SIGINT', cleanup);
+  process.once('SIGTERM', cleanup);
+  process.once('SIGUSR1', cleanup);
+  process.once('SIGUSR2', cleanup);
+  process.once('uncaughtException', cleanup);
+  process.once('unhandledRejection', cleanup);
+
+  _processHandlersSetup = true;
 }
 
 /**
@@ -307,14 +377,6 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
 
   return tracer.startActiveSpan(spanName, (span: Span) => {
     try {
-      // Log span creation if console export is enabled
-      if (_config!.enable_span_console_export) {
-        const spanContext = span.spanContext();
-        console.log(
-          `[SPAN START] ${spanName} - Trace: ${spanContext.traceId}, Span: ${spanContext.spanId}`
-        );
-      }
-
       // Set AWS X-Ray annotations as individual attributes
       if (!_config!.local_mode && _config!._name) {
         span.setAttribute('hash', _config!._name);
@@ -362,11 +424,6 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
                 }
               }
 
-              // Log span completion
-              if (_config!.enable_span_console_export) {
-                console.log(`[SPAN END] ${spanName} - SUCCESS`);
-              }
-
               span.setStatus({ code: SpanStatusCode.OK });
               span.end();
               return value;
@@ -379,15 +436,10 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
                 }
               }
 
-              // Log span error
-              if (_config!.enable_span_console_export) {
-                console.log(`[SPAN ERROR] ${spanName}:`, error.message);
-              }
-
               span.recordException(error);
               span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
               span.end();
-              throw error;
+              void error;
             });
         }
       } else {
@@ -411,11 +463,6 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
         }
       }
 
-      // Log span completion
-      if (_config!.enable_span_console_export) {
-        console.log(`[SPAN END] ${spanName} - SUCCESS`);
-      }
-
       span.setStatus({ code: SpanStatusCode.OK });
       span.end();
       return result;
@@ -435,7 +482,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       span.recordException(error);
       span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
       span.end();
-      throw error;
+      void error;
     }
   });
 }

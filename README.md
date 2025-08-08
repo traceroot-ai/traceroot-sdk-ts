@@ -35,7 +35,7 @@ The logger is based on Winston, designed for integration with CloudWatch. And cu
 ## Installation
 
 ```bash
-npm install traceroot-sdk-ts
+npm install traceroot-sdk-ts@latest
 ```
 
 ## Configuration

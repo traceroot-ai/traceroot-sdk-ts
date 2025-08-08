@@ -7,9 +7,9 @@
  * - get_logger() to get a logger instance
  */
 
-import { _initializeTracing, shutdownTracing, forceFlush } from './tracer';
+import { _initializeTracing, shutdownTracing, forceFlushTracer } from './tracer';
 import { trace as traceDecorator, traceFunction, TraceOptions } from './tracer';
-import { get_logger, initializeLogger } from './logger';
+import { get_logger, initializeLogger, forceFlushLogger, shutdownLogger } from './logger';
 import { TraceRootConfig } from './config';
 
 export const VERSION = '0.0.1';
@@ -94,24 +94,59 @@ export { get_logger };
 
 /**
  * Flush all pending logs to their destinations.
+ * Works for both sync and async usage.
  *
- * Call this before your application exits to ensure all logs are sent to CloudWatch.
+ * Useful for ensuring logs are sent at specific points in your application.
  */
-export { flushLogger } from './logger';
+export { forceFlushLogger };
+
+/**
+ * Shutdown all logger transports and stop background processes.
+ * Works for both sync and async usage.
+ *
+ * Call this before your application exits to prevent hanging processes.
+ */
+export { shutdownLogger };
 
 /**
  * Shutdown tracing and flush any pending spans.
+ * Forces immediate shutdown and cleanup to prevent hanging.
  *
  * Call this before your application exits to ensure all traces are sent.
  */
 export { shutdownTracing };
 
 /**
- * Force flush any pending spans immediately.
+ * Force flush any pending spans immediately without shutting down.
+ * Keeps the tracer running after flushing.
  *
  * Useful for ensuring traces are sent at specific points in your application.
  */
-export { forceFlush };
+export { forceFlushTracer };
+
+/**
+ * Synchronous version of forceFlushTracer.
+ * Starts the flush process but doesn't wait for completion.
+ */
+export { forceFlushTracerSync } from './tracer';
+
+/**
+ * Synchronous version of shutdownTracing that forces process exit.
+ * Use this when you want simple sync-style shutdown without dealing with Promises.
+ */
+export { shutdownTracingSync } from './tracer';
+
+/**
+ * Synchronous version of forceFlushLogger.
+ * Starts the flush process but doesn't wait for completion.
+ */
+export { forceFlushLoggerSync } from './logger';
+
+/**
+ * Synchronous version of shutdownLogger.
+ * Starts the shutdown process but doesn't wait for completion.
+ */
+export { shutdownLoggerSync } from './logger';
 
 // Re-export types for convenience
 export { TraceRootConfig, TraceRootConfigFile } from './config';

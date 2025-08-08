@@ -1,5 +1,6 @@
 import * as traceroot from '../src/index';
-import { forceFlush, shutdownTracing } from '../src/tracer';
+import { forceFlushTracer, shutdownTracing } from '../src/tracer';
+import { forceFlushLogger, shutdownLogger } from '../src/logger';
 
 class TraceRootExample {
   private logger = traceroot.get_logger();
@@ -124,9 +125,10 @@ async function main() {
 
 main()
   .then(async () => {
-    await traceroot.flushLogger();
-    await forceFlush();
+    await forceFlushTracer();
+    await forceFlushLogger();
     await shutdownTracing();
+    await shutdownLogger();
     process.exit(0);
   })
   .catch(async error => {

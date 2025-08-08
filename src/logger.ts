@@ -3,13 +3,6 @@
  */
 
 import * as winston from 'winston';
-import {
-  CloudWatchLogsClient,
-  CreateLogGroupCommand,
-  CreateLogStreamCommand,
-  DescribeLogGroupsCommand,
-  DescribeLogStreamsCommand,
-} from '@aws-sdk/client-cloudwatch-logs';
 import WinstonCloudWatch from 'winston-cloudwatch';
 import { trace as otelTrace } from '@opentelemetry/api';
 import { TraceRootConfigImpl } from './config';
@@ -210,6 +203,8 @@ function processPathFormat(filepath: string, config?: TraceRootConfigImpl): stri
   let processedPath = filepath;
 
   // Handle webpack-internal paths - remove the webpack-internal prefix and resolve to actual location
+  // Example: "webpack-internal:///Users/xxx/code/traceroot-sdk-ts/src/logger.ts"
+  // Result: "/Users/xxx/code/traceroot-sdk-ts/src/logger.ts"
   if (processedPath.includes('webpack-internal:///')) {
     // Remove webpack-internal:///(rsc)/ or similar prefixes
     processedPath = processedPath.replace(/webpack-internal:\/\/\/\([^)]*\)\//, '');
@@ -223,6 +218,7 @@ function processPathFormat(filepath: string, config?: TraceRootConfigImpl): stri
     }
   }
 
+  // Double check this
   // Handle paths that start with './' - remove the './' prefix
   if (processedPath.startsWith('./')) {
     processedPath = processedPath.substring(2);
@@ -307,7 +303,7 @@ function findActualFilePath(relativePath: string): string | null {
         }
       } catch (error) {
         // Skip directories we can't read
-        console.log('searchForFile', error);
+        void error;
       }
 
       return null;
@@ -323,7 +319,7 @@ function findActualFilePath(relativePath: string): string | null {
     const foundPath = searchForFile(gitRoot, relativePath);
     return foundPath;
   } catch (error) {
-    console.log('findActualFilePath', error);
+    void error;
     // If anything fails, return null to fall back to original processing
     return null;
   }
@@ -426,6 +422,13 @@ function getRelativePath(filepath: string, config?: TraceRootConfigImpl): string
  * Get a clean stack trace showing the call path
  */
 function getStackTrace(config?: TraceRootConfigImpl): string {
+  // Create an error and get the stack trace
+  // TODO: find a better way to get the stack trace
+  // Here is an example of the stack trace:
+  // at getStackTrace (/Users/xxx/code/traceroot-sdk-ts/src/logger.ts:429:17)
+  // at TraceRootLogger.info (/Users/xxx/code/traceroot-sdk-ts/src/logger.ts:1027:24)
+  // at TraceRootExample.runExample (/Users/xxx/code/traceroot-sdk-ts/examples/simple-example.ts:71:21)
+  // at async main (/Users/xxx/code/traceroot-sdk-ts/examples/simple-example.ts:122:3)
   const stack = new Error().stack;
   if (!stack) return 'unknown';
 
@@ -450,12 +453,23 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
       line.includes('AsyncLocalStorage') ||
       line.includes('@opentelemetry') ||
       line.includes('lib/') ||
-      line.includes('logform')
+      line.includes('logform') ||
+      line.includes('traceroot-sdk-ts/src') ||
+      line.includes('node_modules') ||
+      line.includes('winston')
     ) {
       continue;
     }
 
     // Extract meaningful information from stack trace
+    // Example: "at TraceRootExample.runExample (/Users/xxx/code/traceroot-sdk-ts/examples/simple-example.ts:71:21)"
+    // Captures: [
+    //  full match,
+    //  "TraceRootExample.runExample",
+    //  "/Users/xxx/code/traceroot-sdk-ts/examples/simple-example.ts",
+    //  "71",
+    //  "21"
+    // ]
     const match = line.match(/at\s+(?:(.+?)\s+\()?(.+?):(\d+):(\d+)\)?/);
     if (match) {
       const [, functionName, filepath, lineNumber] = match;
@@ -464,16 +478,6 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
       let relativePath = filepath;
       // Process various path formats to get a meaningful relative path
       relativePath = processPathFormat(filepath, config);
-
-      // Skip tracing and logging module frames
-      if (
-        relativePath.includes('tracer.') ||
-        relativePath.includes('logger.') ||
-        relativePath.includes('winston') ||
-        relativePath.includes('node_modules')
-      ) {
-        continue;
-      }
 
       const func = functionName || 'anonymous';
       relevantFrames.push(`${relativePath}:${func}:${lineNumber}`);
@@ -781,104 +785,15 @@ export class TraceRootLogger {
       this.cloudWatchTransport = new WinstonCloudWatch({
         logGroupName: logGroupName,
         logStreamName: logStreamName,
-        awsOptions: awsConfig, // Pass the AWS configuration
-        level: 'debug', // Explicitly set log level
-        jsonMessage: true, // Disable JSON formatting to use our custom formatter
-        uploadRate: 2000, // Upload every 2 seconds
-        errorHandler: (err: any) => {
-          console.error('[ERROR] CloudWatch transport errorHandler:', err);
-        },
+        awsOptions: awsConfig,
+        level: 'debug', // TODO: explicitly set log level
+        jsonMessage: true, // Enable JSON formatting to use our custom formatter
+        uploadRate: 1000, // Upload every 1 second
         messageFormatter: (item: any) => this.formatCloudWatchMessage(item),
       });
-
-      // Add comprehensive error handling for CloudWatch transport
-      this.cloudWatchTransport.on('error', (error: any) => {
-        console.error('[ERROR] CloudWatch transport error:', error.message);
-        console.error('[ERROR] CloudWatch error details:', error);
-        if (error.code) {
-          console.error('[ERROR] CloudWatch error code:', error.code);
-        }
-        if (error.statusCode) {
-          console.error('[ERROR] CloudWatch status code:', error.statusCode);
-        }
-      });
-
       this.logger.add(this.cloudWatchTransport);
-
-      // Add checkpoint message AFTER transport is ready
-      this.logger.info('CloudWatch transport is ready - checkpoint message');
-
-      this.logger.on('error', (err: any) => {
-        console.error('[ERROR] Winston logger error:', err);
-      });
     } catch (error: any) {
-      console.error('[ERROR] Failed to setup CloudWatch logging:', error.message);
-    }
-  }
-
-  /**
-   * Test CloudWatch access by trying to create log group and stream
-   */
-  private async testCloudWatchAccess(
-    logGroupName: string,
-    logStreamName: string,
-    awsConfig: any
-  ): Promise<void> {
-    try {
-      const cloudWatchLogs = new CloudWatchLogsClient(awsConfig);
-
-      // Test 1: Try to describe log groups (this will test basic permissions)
-      try {
-        const describeResult = await cloudWatchLogs.send(
-          new DescribeLogGroupsCommand({
-            logGroupNamePrefix: logGroupName,
-            limit: 1,
-          })
-        );
-        // Check if our log group exists
-        const logGroupExists = describeResult.logGroups?.some(
-          (lg: any) => lg.logGroupName === logGroupName
-        );
-
-        if (!logGroupExists) {
-          await cloudWatchLogs.send(new CreateLogGroupCommand({ logGroupName }));
-        }
-      } catch (error: any) {
-        if (error.name === 'ResourceAlreadyExistsException') {
-        } else {
-          console.error('[ERROR] Failed to create log group:', error.message);
-          throw error;
-        }
-      }
-
-      // Test 2: Try to create/check log stream
-      try {
-        const streamsResult = await cloudWatchLogs.send(
-          new DescribeLogStreamsCommand({
-            logGroupName,
-            logStreamNamePrefix: logStreamName,
-            limit: 1,
-          })
-        );
-
-        const streamExists = streamsResult.logStreams?.some(
-          (ls: any) => ls.logStreamName === logStreamName
-        );
-        if (!streamExists) {
-          await cloudWatchLogs.send(
-            new CreateLogStreamCommand({
-              logGroupName,
-              logStreamName,
-            })
-          );
-        }
-      } catch (error: any) {
-        if (error.name !== 'ResourceAlreadyExistsException') {
-          throw error;
-        }
-      }
-    } catch (error: any) {
-      throw error;
+      void error;
     }
   }
 
@@ -886,7 +801,17 @@ export class TraceRootLogger {
     // For local mode, logs are handled by:
     // 1. Console output (if enable_log_console_export is true, handled in setupTransports)
     // 2. Direct span events (handled in addSpanEventDirectly)
-    // No additional transports needed for local mode
+
+    // If console export is disabled, we still need a transport to prevent Winston warnings
+    // Add a minimal null transport that doesn't output anything but prevents "no transports" error
+    if (!this.config.enable_log_console_export) {
+      // Create a simple transport that does nothing but prevents Winston warnings
+      const nullTransport = new winston.transports.Stream({
+        stream: require('fs').createWriteStream('/dev/null'),
+        level: 'debug',
+      });
+      this.logger.add(nullTransport);
+    }
   }
 
   private incrementSpanLogCount(attributeName: string): void {
@@ -1112,14 +1037,17 @@ export class TraceRootLogger {
    */
   async flush(): Promise<void> {
     return new Promise(resolve => {
-      const cloudWatchTransports = this.logger.transports.filter(
+      const allTransports = this.logger.transports;
+      const cloudWatchTransports = allTransports.filter(
         (transport: any) => transport.constructor.name === 'WinstonCloudWatch'
       );
 
+      // If no CloudWatch transports, resolve quickly (local mode or console-only)
       if (cloudWatchTransports.length === 0) {
+        // For local mode, just wait a short time for any pending console output
         setTimeout(() => {
           resolve();
-        }, 500);
+        }, 100);
         return;
       }
 
@@ -1131,7 +1059,6 @@ export class TraceRootLogger {
         if (typeof transport.kthxbye === 'function') {
           transport.kthxbye((error?: any) => {
             if (error) {
-              console.error(`[ERROR] CloudWatch transport ${index + 1} flush error:`, error);
             }
 
             flushedCount++;
@@ -1139,7 +1066,7 @@ export class TraceRootLogger {
               // Give a little extra time for final cleanup
               setTimeout(() => {
                 resolve();
-              }, 500);
+              }, 200);
             }
           });
         } else if (typeof transport.flush === 'function') {
@@ -1150,7 +1077,7 @@ export class TraceRootLogger {
               // Wait for the upload cycle to complete
               setTimeout(() => {
                 resolve();
-              }, 500); // Wait for upload cycle
+              }, 200); // Wait for upload cycle
             }
           } catch (error) {
             console.error(`[ERROR] CloudWatch transport ${index + 1} flush error:`, error);
@@ -1158,7 +1085,7 @@ export class TraceRootLogger {
             if (flushedCount === totalTransports) {
               setTimeout(() => {
                 resolve();
-              }, 500);
+              }, 200);
             }
           }
         } else {
@@ -1167,15 +1094,15 @@ export class TraceRootLogger {
             // Fallback: wait for upload cycle
             setTimeout(() => {
               resolve();
-            }, 500); // Wait longer for upload cycle
+            }, 200); // Wait longer for upload cycle
           }
         }
       });
 
-      // Safety timeout to prevent hanging
+      // Safety timeout to prevent hanging (reduced from 500ms to 300ms)
       setTimeout(() => {
         resolve();
-      }, 500); // 500ms maximum wait
+      }, 300); // 300ms maximum wait
     });
   }
 }
@@ -1202,20 +1129,121 @@ export function get_logger(name?: string): TraceRootLogger {
   if (name === undefined) {
     return _globalLogger;
   }
-
-  // For named loggers, we return the global logger with a different name for now
-  // This is a limitation until we make get_logger async as well
-  console.warn(
-    `[WARNING] Named loggers not fully supported yet. Using global logger instead of creating new one for: ${name}`
-  );
   return _globalLogger;
 }
 
 /**
- * Flush all pending logs to their destinations
+ * Flush all pending logs to their destinations.
+ * Works for both sync and async usage.
  */
-export async function flushLogger(): Promise<void> {
+export function forceFlushLogger(): Promise<void> {
   if (_globalLogger) {
-    await _globalLogger.flush();
+    return _globalLogger.flush();
+  } else {
+    return Promise.resolve();
   }
+}
+
+/**
+ * Shutdown all logger transports and stop background processes.
+ * Works for both sync and async usage.
+ */
+export function shutdownLogger(): Promise<void> {
+  if (_globalLogger) {
+    return new Promise<void>(resolve => {
+      try {
+        // Close all transports to stop background processes
+        const shutdownPromises: Promise<any>[] = [];
+        const transports = (_globalLogger as any).logger.transports;
+
+        transports.forEach((transport: any, index: number) => {
+          void index;
+          try {
+            // For winston-cloudwatch specifically, call kthxbye() first
+            if (typeof transport.kthxbye === 'function') {
+              const result = transport.kthxbye();
+              // If kthxbye returns a promise, wait for it
+              if (result && typeof result.then === 'function') {
+                shutdownPromises.push(
+                  result
+                    .then(() => {})
+                    .catch((err: any) => {
+                      void err;
+                    })
+                );
+              } else {
+              }
+            }
+            // Close the transport to stop background processes
+            if (typeof transport.close === 'function') {
+              transport.close();
+            }
+            if (typeof transport.end === 'function') {
+              transport.end();
+            }
+            // For stream transports, destroy the underlying stream
+            if (transport.stream && typeof transport.stream.destroy === 'function') {
+              transport.stream.destroy();
+            }
+          } catch (e) {
+            void e;
+          }
+        });
+
+        // Clear all transports from the logger
+        transports.length = 0;
+
+        // Clear the global logger reference
+        _globalLogger = null;
+
+        // Wait for all async cleanup operations with a timeout
+        if (shutdownPromises.length > 0) {
+          Promise.race([
+            Promise.all(shutdownPromises),
+            new Promise(resolve => setTimeout(resolve, 1000)), // 1 second timeout
+          ])
+            .then(() => {
+              resolve();
+            })
+            .catch(err => {
+              void err;
+              resolve();
+            });
+        } else {
+          resolve();
+        }
+      } catch (error: any) {
+        void error;
+        resolve();
+      }
+    });
+  } else {
+    return Promise.resolve();
+  }
+}
+
+/**
+ * Synchronous version of forceFlushLogger.
+ * Starts the flush process but doesn't wait for completion.
+ */
+export function forceFlushLoggerSync(): void {
+  const flushPromise = forceFlushLogger();
+  flushPromise
+    .then(() => {})
+    .catch((error: any) => {
+      void error;
+    });
+}
+
+/**
+ * Synchronous version of shutdownLogger.
+ * Starts the shutdown process but doesn't wait for completion.
+ */
+export function shutdownLoggerSync(): void {
+  const shutdownPromise = shutdownLogger();
+  shutdownPromise
+    .then(() => {})
+    .catch((error: any) => {
+      void error;
+    });
 }

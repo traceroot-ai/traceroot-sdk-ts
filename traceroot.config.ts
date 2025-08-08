@@ -19,14 +19,11 @@ const config: TraceRootConfigFile = {
   token: process.env.TRACEROOT_TOKEN || 'traceroot-***********************',
 
   // Whether to enable console export of spans and logs
-  enable_span_console_export: true,
-  enable_log_console_export: true,
+  enable_span_console_export: false,
+  enable_log_console_export: false,
 
   // Local mode that whether to store all data locally
   local_mode: false,
-
-  // Auto-initialize when config is loaded (default: true)
-  autoInit: true,
 };
 
 export default config;
