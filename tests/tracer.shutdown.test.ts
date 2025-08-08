@@ -15,7 +15,7 @@ describe('Tracer Shutdown and Flush', () => {
     environment: 'test',
     local_mode: true,
     enable_span_console_export: false,
-    enable_log_console_export: true, // Enable console logging for tests
+    enable_log_console_export: false, // Disable console logging for tracer tests to avoid transport warnings
   };
 
   beforeEach(() => {

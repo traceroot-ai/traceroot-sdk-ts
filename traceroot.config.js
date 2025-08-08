@@ -1,18 +1,16 @@
-import type { TraceRootConfigFile } from './src/config';
-
-const config: TraceRootConfigFile = {
+const config = {
   // Basic service configuration
-  service_name: 'ts-example',
+  service_name: 'js-example',
   github_owner: 'traceroot-ai',
-  github_repo_name: 'traceroot-sdk-ts',
+  github_repo_name: 'traceroot-sdk',
   github_commit_hash: 'main',
 
   // Your environment configuration
   // development, staging, production
-  environment: process.env.NODE_ENV || 'development',
+  environment: 'development',
 
   // Token configuration
-  token: process.env.TRACEROOT_TOKEN || 'traceroot-*',
+  token: 'traceroot-*',
 
   // Whether to enable console export of spans and logs
   enable_span_console_export: false,
@@ -22,4 +20,4 @@ const config: TraceRootConfigFile = {
   local_mode: false,
 };
 
-export default config;
+module.exports = config;

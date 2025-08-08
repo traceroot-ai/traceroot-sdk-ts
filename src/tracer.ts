@@ -219,8 +219,30 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 /**
  * Force flush all pending spans immediately without shutting down.
  * Keeps the tracer running after flushing.
+ *
+ * This function is fire-and-forget - it starts the flush process but
+ * catches any rejections internally to prevent unhandled promise rejections.
+ * Use forceFlushTracerAsync() if you need to handle flush errors.
  */
 export function forceFlushTracer(): Promise<void> {
+  if (_tracerProvider !== null) {
+    // Return a promise that never rejects to prevent unhandled rejections
+    return _tracerProvider
+      .forceFlush()
+      .then(() => {})
+      .catch((error: any) => {
+        // Log error but don't let it bubble up for fire-and-forget usage
+        console.debug('[TraceRoot] Flush failed (non-critical):', error);
+      });
+  }
+  return Promise.resolve();
+}
+
+/**
+ * Async version of forceFlushTracer that surfaces errors to callers.
+ * Use this when you want to handle flush failures explicitly.
+ */
+export function forceFlushTracerAsync(): Promise<void> {
   if (_tracerProvider !== null) {
     return _tracerProvider.forceFlush().then(() => {});
   }

@@ -125,6 +125,12 @@ export { shutdownTracing };
 export { forceFlushTracer };
 
 /**
+ * Async version of forceFlushTracer that surfaces errors to callers.
+ * Use this when you want to handle flush failures explicitly.
+ */
+export { forceFlushTracerAsync } from './tracer';
+
+/**
  * Synchronous version of forceFlushTracer.
  * Starts the flush process but doesn't wait for completion.
  */
