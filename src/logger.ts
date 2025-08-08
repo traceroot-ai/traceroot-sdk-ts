@@ -493,6 +493,7 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
  */
 export class TraceRootLogger {
   private logger: winston.Logger;
+  private consoleLogger: winston.Logger | null = null; // Separate logger for console output
   private config: TraceRootConfigImpl;
   private loggerName: string;
   private credentialsRefreshPromise: Promise<AwsCredentials | null> | null = null;
@@ -705,44 +706,34 @@ export class TraceRootLogger {
   }
 
   private setupTransports(): void {
-    // Console transport for debugging (works in both local and non-local modes)
+    // Console logger for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
-      this.logger.add(
-        new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.colorize(),
-            winston.format.printf((info: any) => {
-              // Format for console output
-              const meta = Object.keys(info)
-                .filter(
-                  key =>
-                    ![
-                      'level',
-                      'message',
-                      'timestamp',
-                      'trace_id',
-                      'span_id',
-                      'stack_trace',
-                      'service_name',
-                      'github_commit_hash',
-                      'github_owner',
-                      'github_repo_name',
-                      'environment',
-                    ].includes(key)
-                )
-                .reduce((obj, key) => {
-                  obj[key] = info[key];
-                  return obj;
-                }, {} as any);
+      // Create a separate logger specifically for console output - simple format with just user data
+      this.consoleLogger = winston.createLogger({
+        level: 'debug',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.colorize(),
+          winston.format.printf((info: any) => {
+            // Simple console format - just timestamp, level, message, and user metadata
+            const userMeta = Object.keys(info)
+              .filter(key => !['level', 'message', 'timestamp'].includes(key))
+              .reduce((obj, key) => {
+                obj[key] = info[key];
+                return obj;
+              }, {} as any);
 
-              const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-              const traceInfo = info.trace_id !== 'no-trace' ? ` [trace:${info.trace_id}]` : '';
-              return `${info.timestamp} [${info.level.toUpperCase()}]${traceInfo} ${info.message}${metaStr}`;
-            })
-          ),
-        })
-      );
+            const metaStr = Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
+            return `${info.timestamp} [${info.level}] ${info.message}${metaStr}`;
+          })
+        ),
+        transports: [
+          new winston.transports.Console({
+            handleExceptions: false,
+            handleRejections: false,
+          }),
+        ],
+      });
     }
 
     // Setup appropriate transport based on mode
@@ -824,6 +815,17 @@ export class TraceRootLogger {
       }
     } catch {
       // Don't let span attribute errors interfere with logging
+    }
+  }
+
+  /**
+   * Helper method to log to console if console export is enabled
+   * Only logs user-provided data from the original log arguments
+   */
+  private logToConsole(level: string, message: string, userMetadata: any): void {
+    if (this.consoleLogger) {
+      // Pass only the user-provided metadata (from processLogArgs)
+      (this.consoleLogger as any)[level](message, userMetadata || {});
     }
   }
 
@@ -948,6 +950,9 @@ export class TraceRootLogger {
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('debug', message, logData);
 
+    // Log to console if enabled (pass only user metadata, not internal logData)
+    this.logToConsole('debug', message, metadata);
+
     if (this.config.local_mode) {
       this.logger.debug(message, logData);
       this.incrementSpanLogCount('num_debug_logs');
@@ -966,6 +971,9 @@ export class TraceRootLogger {
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('info', message, logData);
 
+    // Log to console if enabled (pass only user metadata, not internal logData)
+    this.logToConsole('info', message, metadata);
+
     if (this.config.local_mode) {
       this.logger.info(message, logData);
       this.incrementSpanLogCount('num_info_logs');
@@ -973,7 +981,6 @@ export class TraceRootLogger {
     }
 
     await this.checkAndRefreshCredentials();
-
     this.logger.info(message, logData);
     this.incrementSpanLogCount('num_info_logs');
   }
@@ -983,6 +990,9 @@ export class TraceRootLogger {
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('warn', message, logData);
+
+    // Log to console if enabled (pass only user metadata, not internal logData)
+    this.logToConsole('warn', message, metadata);
 
     if (this.config.local_mode) {
       this.logger.warn(message, logData);
@@ -1002,6 +1012,9 @@ export class TraceRootLogger {
     const logData = { ...metadata, stack_trace: stackTrace };
     this.addSpanEventDirectly('error', message, logData);
 
+    // Log to console if enabled (pass only user metadata, not internal logData)
+    this.logToConsole('error', message, metadata);
+
     if (this.config.local_mode) {
       this.logger.error(message, logData);
       this.incrementSpanLogCount('num_error_logs');
@@ -1019,6 +1032,9 @@ export class TraceRootLogger {
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, level: 'critical', stack_trace: stackTrace };
     this.addSpanEventDirectly('critical', message, logData);
+
+    // Log to console if enabled (use 'error' level for critical in console, pass only user metadata)
+    this.logToConsole('error', message, metadata);
 
     if (this.config.local_mode) {
       this.logger.error(message, logData);
@@ -1041,13 +1057,18 @@ export class TraceRootLogger {
       const cloudWatchTransports = allTransports.filter(
         (transport: any) => transport.constructor.name === 'WinstonCloudWatch'
       );
+      const consoleTransports = allTransports.filter(
+        (transport: any) => transport.constructor.name === 'Console'
+      );
 
-      // If no CloudWatch transports, resolve quickly (local mode or console-only)
+      // If no CloudWatch transports, handle console-only case
       if (cloudWatchTransports.length === 0) {
-        // For local mode, just wait a short time for any pending console output
+        // For console transports, we need to wait longer for async log processing
+        // especially when logs are called without await in sync contexts
+        const waitTime = consoleTransports.length > 0 ? 500 : 100;
         setTimeout(() => {
           resolve();
-        }, 100);
+        }, waitTime);
         return;
       }
 
@@ -1224,15 +1245,37 @@ export function shutdownLogger(): Promise<void> {
 
 /**
  * Synchronous version of forceFlushLogger.
- * Starts the flush process but doesn't wait for completion.
+ * For console transports, uses a blocking wait to ensure logs appear in sync contexts.
  */
 export function forceFlushLoggerSync(): void {
-  const flushPromise = forceFlushLogger();
-  flushPromise
-    .then(() => {})
-    .catch((error: any) => {
-      void error;
-    });
+  if (!_globalLogger) {
+    return;
+  }
+
+  const transports = (_globalLogger as any).logger.transports;
+  const hasConsoleTransport = transports.some((t: any) => t.constructor.name === 'Console');
+  const hasCloudWatchTransport = transports.some(
+    (t: any) => t.constructor.name === 'WinstonCloudWatch'
+  );
+
+  if (hasConsoleTransport) {
+    // For console transports in sync contexts, we need to wait for the async logging to complete
+    // Use a longer blocking delay to ensure console output appears
+    const start = Date.now();
+    while (Date.now() - start < 200) {
+      // Blocking delay for console output
+    }
+  }
+
+  // Start async flush for CloudWatch transports (don't wait)
+  if (hasCloudWatchTransport) {
+    const flushPromise = forceFlushLogger();
+    flushPromise
+      .then(() => {})
+      .catch((error: any) => {
+        void error;
+      });
+  }
 }
 
 /**

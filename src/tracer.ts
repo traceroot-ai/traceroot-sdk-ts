@@ -275,7 +275,7 @@ export function shutdownTracingSync(): void {
   // This ensures cleanup has time to complete while providing sync semantics
   setTimeout(() => {
     process.exit(0);
-  }, 100); // Give enough time for BatchSpanProcessor cleanup
+  }, 500); // Give enough time for BatchSpanProcessor cleanup
 
   // Also handle the promise to log completion
   shutdownPromise

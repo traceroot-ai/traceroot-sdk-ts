@@ -280,7 +280,8 @@ describe('TraceRoot Logger Credential Expiration', () => {
 
       // Fetch should only be called once due to the promise caching mechanism
       expect(global.fetch).toHaveBeenCalledTimes(1);
-      expect(mockWinstonLogger.info).toHaveBeenCalledTimes(3);
+      // Each info() call results in 2 winston calls (console logger + main logger)
+      expect(mockWinstonLogger.info).toHaveBeenCalledTimes(6);
     });
 
     test('should not refresh credentials in local mode', async () => {

@@ -60,7 +60,7 @@ const config: TraceRootConfigFile = {
   token: 'traceroot-***********************',
 
   // Whether to enable console export of spans and logs
-  enable_span_console_export: true,
+  enable_span_console_export: false,
   enable_log_console_export: true,
 
   // Local mode that whether to store all data locally
@@ -76,37 +76,77 @@ Then you can use the `traceroot.traceFunction` to trace your functions:
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-const greet = traceroot.traceFunction(function greet(name: string): string {
-  const logger = traceroot.get_logger();
-  logger.info(`Greeting inside traced function: ${name}`);
-  return `Hello, ${name}!`;
-}, { spanName: 'greet' });
+const logger = traceroot.get_logger();
 
-greet('world');
+async function main() {
+  const greet = traceroot.traceFunction(
+    async function greet(name: string): Promise<string> {
+      logger.info(`Greeting inside traced function: ${name}`);
+      // Simulate some async work
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return `Hello, ${name}!`;
+    },
+    { spanName: 'greet' }
+  );
+
+  const result = await greet('world');
+  logger.info(`Greeting result: ${result}`);
+}
+
+main().then(async () => {
+  await traceroot.forceFlushTracer();
+  await traceroot.shutdownTracing();
+  await traceroot.forceFlushLogger();
+  await traceroot.shutdownLogger();
+  process.exit(0);
+});
+
 ```
 
-Or just use the decorator:
+Or just use the decorator such as:
 
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-@traceroot.trace({ spanName: 'greet' })
-function greet(name: string): string {
-  const logger = traceroot.get_logger();
-  logger.info(`Greeting inside traced function: ${name}`);
-  return `Hello, ${name}!`;
+const logger = traceroot.get_logger();
+
+class GreetingService {
+  // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
+  @traceroot.trace({ spanName: 'greet' })
+  async greet(name: string): Promise<string> {
+    logger.info(`Greeting inside traced function: ${name}`);
+    // Simulate some async work
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return `Hello, ${name}!`;
+  }
 }
 
-greet('world');
+async function main() {
+  const service = new GreetingService();
+  const result = await service.greet('world');
+  logger.info(`Greeting result: ${result}`); // This will not be shown in TraceRoot UI
+}
+
+main().then(async () => {
+  await traceroot.forceFlushTracer();
+  await traceroot.shutdownTracing();
+  await traceroot.forceFlushLogger();
+  await traceroot.shutdownLogger();
+  process.exit(0);
+});
+
 ```
 
-More details can be found in the [examples](examples).
+More details can be found in the [examples](./examples).
 
 You can run following examples after modifying the `traceroot.config.ts` file:
 
 ```bash
+npx ts-node --transpile-only examples/simple-example-sync.ts # Not working for now
 npx ts-node --transpile-only examples/simple-example.ts
 npx ts-node --transpile-only examples/simple-example-decorator.ts
+npx ts-node --transpile-only examples/example.ts
+npx ts-node --transpile-only examples/example-decorator.ts
 ```
 
 ## Development

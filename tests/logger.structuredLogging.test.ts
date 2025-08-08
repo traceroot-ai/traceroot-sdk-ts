@@ -275,20 +275,28 @@ describe('TraceRoot Logger Structured Logging', () => {
       logger.info('Just a message');
       logger.info({ justData: 'value' });
 
-      expect(mockWinstonLogger.info).toHaveBeenNthCalledWith(1,
+      // The logger calls winston twice - once for console logging and once for regular logging
+      // We need to check the calls that contain the stack_trace (the regular logging calls)
+      const callsWithStackTrace = mockWinstonLogger.info.mock.calls.filter(
+        (call: any[]) => call[1] && call[1].stack_trace
+      );
+
+      expect(callsWithStackTrace).toHaveLength(2);
+
+      expect(callsWithStackTrace[0]).toEqual([
         'Just a message',
         expect.objectContaining({
           stack_trace: expect.any(String),
         })
-      );
+      ]);
 
-      expect(mockWinstonLogger.info).toHaveBeenNthCalledWith(2,
+      expect(callsWithStackTrace[1]).toEqual([
         'Log entry',
         expect.objectContaining({
           justData: 'value',
           stack_trace: expect.any(String),
         })
-      );
+      ]);
     });
   });
 });
