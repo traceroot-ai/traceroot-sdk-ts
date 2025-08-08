@@ -53,6 +53,7 @@ export function findAndLoadConfigSync(): {
 } | null {
   // Try to find a TypeScript config file
   const tsConfigPath = findTypescriptConfig();
+  console.log('tsConfigPath', tsConfigPath);
   if (tsConfigPath) {
     try {
       const configFile = loadTypescriptConfigSync(tsConfigPath);

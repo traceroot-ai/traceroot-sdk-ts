@@ -162,7 +162,9 @@ import { autoInitialize as _autoInitialize, shouldAutoInitialize } from './autoI
 // Auto-initialize TraceRoot if config file exists and conditions are met
 // This happens when the module is imported (now synchronous)
 if (shouldAutoInitialize()) {
+  console.log('shouldAutoInitialize()', shouldAutoInitialize());
   try {
+    console.log('Auto-initializing TraceRoot');
     _autoInitialize();
   } catch (error) {
     // Silently fail auto-initialization - users can still call init() manually

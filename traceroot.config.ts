@@ -1,7 +1,3 @@
-// This file configures the initialization of TraceRoot
-// The config you add here will be used whenever TraceRoot is initialized
-// Similar to Sentry's configuration approach
-
 import type { TraceRootConfigFile } from './src/config';
 
 const config: TraceRootConfigFile = {

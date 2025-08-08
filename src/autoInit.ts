@@ -13,6 +13,8 @@ export function autoInitialize(): boolean {
   try {
     const configResult = findAndLoadConfigSync();
 
+    console.log('configResult', configResult);
+
     if (!configResult) {
       console.debug('[TraceRoot] No config file found, skipping auto-initialization');
       return false; // No config found
