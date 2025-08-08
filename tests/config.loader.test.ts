@@ -7,9 +7,9 @@
 
 import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import { 
-  findTypescriptConfig, 
-  loadTypescriptConfigSync 
+import {
+  findTypescriptConfig,
+  loadTypescriptConfigSync
 } from '../src/utils/configLoader';
 
 // Mock modules to avoid side effects
