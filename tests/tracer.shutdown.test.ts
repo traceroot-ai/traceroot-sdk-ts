@@ -76,7 +76,7 @@ describe('Tracer Shutdown and Flush', () => {
 
       // Flush should handle multiple spans
       await traceroot.forceFlushTracer();
-      
+
       expect(true).toBe(true);
     });
   });
@@ -141,7 +141,7 @@ describe('Tracer Shutdown and Flush', () => {
     test('should be idempotent (safe to call multiple times)', async () => {
       // First shutdown
       await traceroot.shutdownTracing();
-      
+
       // Second shutdown should not throw
       await expect(traceroot.shutdownTracing()).resolves.toBeUndefined();
     });
@@ -150,7 +150,7 @@ describe('Tracer Shutdown and Flush', () => {
   describe('Combined usage', () => {
     test('should work with flush followed by shutdown (sync)', (done) => {
       const testFn = traceroot.traceFunction(() => 'combined test', { spanName: 'combined-span' });
-      
+
       testFn();
 
       // Sync usage - flush then shutdown
@@ -164,7 +164,7 @@ describe('Tracer Shutdown and Flush', () => {
 
     test('should work with flush followed by shutdown (async)', async () => {
       const testFn = traceroot.traceFunction(() => 'async combined test', { spanName: 'async-combined-span' });
-      
+
       testFn();
 
       // Async usage - flush then shutdown

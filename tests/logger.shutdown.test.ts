@@ -33,7 +33,7 @@ describe('Logger Flush and Shutdown', () => {
     test('should work synchronously (without await)', (done) => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
-      
+
       logger.info('Test sync log message 1');
       logger.warn('Test sync log message 2');
       logger.error('Test sync log message 3');
@@ -51,7 +51,7 @@ describe('Logger Flush and Shutdown', () => {
     test('should work asynchronously (with await)', async () => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
-      
+
       logger.info('Test async log message 1');
       logger.warn('Test async log message 2');
       logger.error('Test async log message 3');
@@ -65,7 +65,7 @@ describe('Logger Flush and Shutdown', () => {
 
     test('should handle large number of log messages', async () => {
       const logger = traceroot.get_logger();
-      
+
       // Create many log messages
       for (let i = 0; i < 100; i++) {
         logger.info(`Bulk log message ${i}`);
@@ -73,13 +73,13 @@ describe('Logger Flush and Shutdown', () => {
 
       // Flush should handle all messages
       await traceroot.forceFlushLogger();
-      
+
       expect(true).toBe(true);
     });
 
     test('should handle different log levels', async () => {
       const logger = traceroot.get_logger();
-      
+
       logger.debug('Debug message');
       logger.info('Info message');
       logger.warn('Warning message');
@@ -87,7 +87,7 @@ describe('Logger Flush and Shutdown', () => {
 
       // Flush should handle all log levels
       await traceroot.forceFlushLogger();
-      
+
       expect(true).toBe(true);
     });
   });
@@ -96,7 +96,7 @@ describe('Logger Flush and Shutdown', () => {
     test('should work synchronously (without await)', (done) => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
-      
+
       logger.info('Pre-shutdown log message');
 
       // Shutdown synchronously (no await)
@@ -112,7 +112,7 @@ describe('Logger Flush and Shutdown', () => {
     test('should work asynchronously (with await)', async () => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
-      
+
       logger.info('Pre-async-shutdown log message');
 
       // Shutdown asynchronously (with await)
@@ -133,7 +133,7 @@ describe('Logger Flush and Shutdown', () => {
 
       // First shutdown
       await traceroot.shutdownLogger();
-      
+
       // Second shutdown should not throw
       await expect(traceroot.shutdownLogger()).resolves.toBeUndefined();
     });
@@ -142,7 +142,7 @@ describe('Logger Flush and Shutdown', () => {
   describe('Combined usage', () => {
     test('should work with flush followed by shutdown (sync)', (done) => {
       const logger = traceroot.get_logger();
-      
+
       logger.info('Combined test log message');
       logger.warn('Another combined test message');
 
@@ -157,7 +157,7 @@ describe('Logger Flush and Shutdown', () => {
 
     test('should work with flush followed by shutdown (async)', async () => {
       const logger = traceroot.get_logger();
-      
+
       logger.info('Async combined test log message');
       logger.error('Another async combined test message');
 
@@ -204,15 +204,15 @@ describe('Logger Flush and Shutdown', () => {
 
     test('should handle logging after flush but before shutdown', async () => {
       const logger = traceroot.get_logger();
-      
+
       logger.info('Message before flush');
       await traceroot.forceFlushLogger();
-      
+
       // Should still be able to log after flush
       logger.info('Message after flush');
-      
+
       await traceroot.shutdownLogger();
-      
+
       expect(true).toBe(true);
     });
   });
@@ -221,12 +221,12 @@ describe('Logger Flush and Shutdown', () => {
     test('should handle console transport', async () => {
       // Console transport should always be present in test environment
       const logger = traceroot.get_logger();
-      
+
       logger.info('Console transport test message');
-      
+
       await traceroot.forceFlushLogger();
       await traceroot.shutdownLogger();
-      
+
       expect(true).toBe(true);
     });
   });
@@ -234,16 +234,16 @@ describe('Logger Flush and Shutdown', () => {
   describe('Performance', () => {
     test('should handle rapid flush/shutdown cycles', async () => {
       const logger = traceroot.get_logger();
-      
+
       // Rapid logging and flushing
       for (let i = 0; i < 10; i++) {
         logger.info(`Rapid test message ${i}`);
-        
+
         if (i % 3 === 0) {
           await traceroot.forceFlushLogger();
         }
       }
-      
+
       await traceroot.shutdownLogger();
       expect(true).toBe(true);
     });
