@@ -9,19 +9,18 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { TraceRootConfig, TraceRootConfigImpl } from './config';
+import { TraceOptions, AwsCredentials } from './types';
+import { fetchAwsCredentialsSync } from './api/credential';
+import {
+  TELEMETRY_SDK_LANGUAGE,
+  TELEMETRY_ATTRIBUTES,
+  BATCH_SPAN_PROCESSOR_CONFIG,
+} from './constants';
 
-// Global state
+// Global variables
 let _tracerProvider: NodeTracerProvider | null = null;
 let _config: TraceRootConfigImpl | null = null;
 let _isShuttingDown: boolean = false;
-
-export interface TraceOptions {
-  spanName?: string;
-  spanNameSuffix?: string;
-  traceParams?: boolean | string[];
-  traceReturnValue?: boolean;
-  flattenAttributes?: boolean;
-}
 
 export class TraceOptionsImpl implements TraceOptions {
   spanName?: string;
@@ -45,51 +44,11 @@ export class TraceOptionsImpl implements TraceOptions {
   }
 }
 
-interface AwsCredentials {
-  aws_access_key_id: string;
-  aws_secret_access_key: string;
-  aws_session_token: string;
-  region: string;
-  hash: string;
-  expiration_utc: Date;
-  otlp_endpoint: string;
-}
-
-/**
- * Fetch AWS credentials from TraceRoot API (synchronous using sync HTTP)
- */
-function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredentials | null {
-  if (!config.token) {
-    console.log('[TraceRoot] No token provided, skipping AWS credentials fetch');
-    return null;
-  }
-
-  try {
-    const apiUrl = `https://api.test.traceroot.ai/v1/verify/credentials?token=${encodeURIComponent(config.token)}`;
-
-    // Create a synchronous HTTP request using child_process
-    const { execSync } = require('child_process');
-
-    try {
-      const curlCommand = `curl -s -H "Content-Type: application/json" "${apiUrl}"`;
-      const response = execSync(curlCommand, { timeout: 5000, encoding: 'utf8' });
-      const credentials = JSON.parse(response);
-      return credentials;
-    } catch (error: any) {
-      void error;
-      return null;
-    }
-  } catch (error: any) {
-    void error;
-    return null;
-  }
-}
-
 /**
  * Initialize TraceRoot tracing and logging (synchronous).
  *
  * This is the main entry point for setting up tracing and logging.
- * Call this once at the start of your application.
+ * This will be called once at the start TraceRoot is imported and initialized.
  */
 export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
   // Check if already initialized
@@ -122,7 +81,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   // If not in local mode, fetch AWS credentials and update config before creating tracer
   if (!config.local_mode) {
-    const credentials = fetchAwsCredentialsSync(config);
+    const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
     if (credentials) {
       // Update config with fetched credentials
       config._name = credentials.hash;
@@ -135,18 +94,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     }
   }
 
+  // Update the global config with full config object
   _config = config;
-
-  // Test OTLP endpoint connectivity (skip in tests to avoid async issues)
-  if (config.local_mode && process.env.NODE_ENV !== 'test') {
-    const axios = require('axios');
-    axios
-      .get(config.otlp_endpoint.replace('/v1/traces', '/health'))
-      .then(() => console.log(`[TraceRoot] OTLP endpoint is reachable`))
-      .catch((err: any) => console.log(`[TraceRoot] OTLP endpoint check failed:`, err.message));
-  }
-
-  // Logger will be initialized separately to avoid circular dependency
 
   // Create resource with service information using new semantic conventions
   const resource = Resource.default().merge(
@@ -156,32 +105,26 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
       'service.github_owner': config.github_owner,
       'service.github_repo_name': config.github_repo_name,
       'service.environment': config.environment,
-      'telemetry.sdk.language': 'ts',
+      [TELEMETRY_ATTRIBUTES.SDK_LANGUAGE]: TELEMETRY_SDK_LANGUAGE,
     })
   );
 
-  // Create trace exporter with debugging - now using the correct endpoint
+  // Create trace exporter
   const traceExporter = new OTLPTraceExporter({
     url: config.otlp_endpoint,
   });
 
-  // Add debugging to the exporter
-  const originalExport = traceExporter.export.bind(traceExporter);
-  traceExporter.export = function (spans: any, resultCallback: any) {
-    return originalExport(spans, (result: any) => {
-      resultCallback(result);
-    });
-  };
-
-  // Create span processor - in local mode, use SimpleSpanProcessor for immediate export when span ends
+  // Create span processor
+  // Local mode: use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
+  // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
   const spanProcessor = config.local_mode
     ? new SimpleSpanProcessor(traceExporter)
     : new BatchSpanProcessor(traceExporter, {
-        maxExportBatchSize: 10,
-        exportTimeoutMillis: 5000,
-        scheduledDelayMillis: 500,
-        maxQueueSize: 100,
+        maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+        exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+        scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+        maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
       });
 
   // Prepare span processors array
@@ -193,10 +136,10 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     const consoleProcessor = config.local_mode
       ? new SimpleSpanProcessor(consoleExporter)
       : new BatchSpanProcessor(consoleExporter, {
-          maxExportBatchSize: 10,
-          exportTimeoutMillis: 5000,
-          scheduledDelayMillis: 500,
-          maxQueueSize: 100,
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
         });
     spanProcessors.push(consoleProcessor);
   }
@@ -409,7 +352,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       span.setAttribute('service.github_owner', _config!.github_owner);
       span.setAttribute('service.github_repo_name', _config!.github_repo_name);
       span.setAttribute('service.version', _config!.github_commit_hash);
-      span.setAttribute('telemetry_sdk_language', 'ts');
+      span.setAttribute(TELEMETRY_ATTRIBUTES.SDK_LANGUAGE_UNDERSCORE, TELEMETRY_SDK_LANGUAGE);
 
       // Add parameter attributes if requested
       if (options.traceParams) {

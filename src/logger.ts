@@ -6,16 +6,7 @@ import * as winston from 'winston';
 import WinstonCloudWatch from 'winston-cloudwatch';
 import { trace as otelTrace } from '@opentelemetry/api';
 import { TraceRootConfigImpl } from './config';
-
-interface AwsCredentials {
-  aws_access_key_id: string;
-  aws_secret_access_key: string;
-  aws_session_token: string;
-  region: string;
-  hash: string;
-  expiration_utc: Date;
-  otlp_endpoint: string;
-}
+import { AwsCredentials } from './types';
 
 /**
  * Custom Winston format for trace correlation

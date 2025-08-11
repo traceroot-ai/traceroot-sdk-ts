@@ -8,9 +8,10 @@
  */
 
 import { _initializeTracing, shutdownTracing, forceFlushTracer } from './tracer';
-import { trace as traceDecorator, traceFunction, TraceOptions } from './tracer';
+import { trace as traceDecorator, traceFunction } from './tracer';
 import { get_logger, initializeLogger, forceFlushLogger, shutdownLogger } from './logger';
 import { TraceRootConfig } from './config';
+import { TraceOptions } from './types';
 
 export const VERSION = '0.0.1';
 
@@ -156,8 +157,15 @@ export { shutdownLoggerSync } from './logger';
 
 // Re-export types for convenience
 export { TraceRootConfig, TraceRootConfigFile } from './config';
-export { TraceOptions } from './tracer';
+export { TraceOptions, AwsCredentials } from './types';
 export { TraceRootLogger } from './logger';
+
+// Re-export constants for convenience
+export {
+  TELEMETRY_SDK_LANGUAGE,
+  TELEMETRY_ATTRIBUTES,
+  BATCH_SPAN_PROCESSOR_CONFIG,
+} from './constants';
 
 // Auto-initialization utilities
 export { autoInitialize, shouldAutoInitialize } from './autoInit';
