@@ -137,7 +137,6 @@ main().then(async () => {
   await traceroot.shutdownLogger();
   process.exit(0);
 });
-
 ```
 
 Or just use the decorator such as:
@@ -171,7 +170,12 @@ main().then(async () => {
   await traceroot.shutdownLogger();
   process.exit(0);
 });
+```
 
+You can also log with some metadata and make it searchable in the TraceRoot UI via:
+
+```typescript
+logger.info({ requestId }, `Making another request`);
 ```
 
 More details can be found in the [examples](./examples).
