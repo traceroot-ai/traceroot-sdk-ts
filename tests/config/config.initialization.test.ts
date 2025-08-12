@@ -5,7 +5,7 @@
  * without testing the full AWS SDK integration to avoid Jest compatibility issues.
  */
 
-import { TraceRootConfigImpl } from '../src/config';
+import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock child_process to avoid actual curl calls during tests
 jest.mock('child_process', () => ({

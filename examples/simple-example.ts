@@ -3,18 +3,17 @@ import * as traceroot from '../src/index';
 const logger = traceroot.get_logger();
 
 async function main() {
-  const greet = traceroot.traceFunction(
-    async function greet(name: string): Promise<string> {
-      logger.info(`Greeting inside traced function: ${name}`);
+  const makeRequest = traceroot.traceFunction(
+    async function makeRequest(requestId: string): Promise<string> {
+      logger.info(`Making request: ${requestId}`);
       // Simulate some async work
       await new Promise(resolve => setTimeout(resolve, 1000));
-      return `Hello, ${name}!`;
+      return `Request ${requestId} completed`;
     },
-    { spanName: 'greet' }
+    { spanName: 'makeRequest', traceParams: true }
   );
-
-  const result = await greet('world');
-  logger.info(`Greeting result: ${result}`); // This will not be shown in TraceRoot UI
+  const result = await makeRequest('123');
+  logger.info(`Request result: ${result}`); // This will not be shown in TraceRoot UI
 }
 
 main().then(async () => {

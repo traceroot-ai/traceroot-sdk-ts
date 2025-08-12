@@ -3,8 +3,8 @@
  * Tests both synchronous and asynchronous usage patterns
  */
 
-import * as traceroot from '../src/index';
-import { TraceRootConfig } from '../src/config';
+import * as traceroot from '../../src/index';
+import { TraceRootConfig } from '../../src/config';
 
 describe('Logger Flush and Shutdown', () => {
   const testConfig: Partial<TraceRootConfig> = {

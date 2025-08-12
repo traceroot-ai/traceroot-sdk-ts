@@ -1,5 +1,5 @@
-import { TraceRootLogger } from '../src/logger';
-import { TraceRootConfigImpl } from '../src/config';
+import { TraceRootLogger } from '../../src/logger';
+import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
 jest.mock('winston', () => {

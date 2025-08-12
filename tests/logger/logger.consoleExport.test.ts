@@ -2,8 +2,8 @@
  * Tests for console logging when enable_log_console_export is true
  */
 
-import { TraceRootConfigImpl } from '../src/config';
-import { initializeLogger, shutdownLogger } from '../src/logger';
+import { TraceRootConfigImpl } from '../../src/config';
+import { initializeLogger, shutdownLogger } from '../../src/logger';
 
 afterEach(async () => {
   await shutdownLogger();

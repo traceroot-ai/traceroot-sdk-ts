@@ -18,6 +18,11 @@ export const TELEMETRY_ATTRIBUTES = {
 } as const;
 
 /**
+ * TraceRoot tracer name for OpenTelemetry
+ */
+export const TRACER_NAME = 'traceroot';
+
+/**
  * BatchSpanProcessor configuration constants
  */
 export const BATCH_SPAN_PROCESSOR_CONFIG = {

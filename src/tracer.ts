@@ -15,6 +15,7 @@ import {
   TELEMETRY_SDK_LANGUAGE,
   TELEMETRY_ATTRIBUTES,
   BATCH_SPAN_PROCESSOR_CONFIG,
+  TRACER_NAME,
 } from './constants';
 
 // Global variables
@@ -131,6 +132,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   const spanProcessors = [spanProcessor];
 
   // If console export is enabled, add console span processor with same type as main processor
+  // This will log the spans to the console for debugging purposes etc.
   if (config.enable_span_console_export) {
     const consoleExporter = new ConsoleSpanExporter();
     const consoleProcessor = config.local_mode
@@ -295,13 +297,6 @@ export function getConfig(): TraceRootConfigImpl | null {
 }
 
 /**
- * Get the tracer provider instance
- */
-export function getTracerProvider(): NodeTracerProvider | null {
-  return _tracerProvider;
-}
-
-/**
  * Decorator for tracing function execution.
  */
 export function trace(options: TraceOptions = {}) {
@@ -329,6 +324,40 @@ export function traceFunction<T extends (...args: any[]) => any>(
 }
 
 /**
+ * Helper function to add pending log events to span
+ */
+function _addPendingLogEvents(span: Span): void {
+  if ((span as any)._pendingLogEvents) {
+    for (const event of (span as any)._pendingLogEvents) {
+      span.addEvent(event.name, event.attributes, event.timestamp);
+    }
+  }
+}
+
+/**
+ * Helper function to finalize span with success status
+ */
+function _finalizeSpanSuccess(span: Span, returnValue: any, options: TraceOptionsImpl): any {
+  if (options.traceReturnValue) {
+    _storeDictInSpan({ return: returnValue }, span, options.flattenAttributes);
+  }
+  _addPendingLogEvents(span);
+  span.setStatus({ code: SpanStatusCode.OK });
+  span.end();
+  return returnValue;
+}
+
+/**
+ * Helper function to finalize span with error status
+ */
+function _finalizeSpanError(span: Span, error: any): void {
+  _addPendingLogEvents(span);
+  span.recordException(error);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+  span.end();
+}
+
+/**
  * Internal function for tracing execution
  */
 function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, args: any[]): any {
@@ -337,7 +366,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
     return fn.apply(thisArg, args);
   }
 
-  const tracer = otelTrace.getTracer('traceroot');
+  const tracer = otelTrace.getTracer(TRACER_NAME);
   const spanName = options.getSpanName(fn);
 
   return tracer.startActiveSpan(spanName, (span: Span) => {
@@ -348,21 +377,12 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       }
       span.setAttribute('service_name', _config!.service_name);
       span.setAttribute('service_environment', _config!.environment);
-      // Add the missing attributes as span attributes
-      span.setAttribute('service.github_owner', _config!.github_owner);
-      span.setAttribute('service.github_repo_name', _config!.github_repo_name);
-      span.setAttribute('service.version', _config!.github_commit_hash);
       span.setAttribute(TELEMETRY_ATTRIBUTES.SDK_LANGUAGE_UNDERSCORE, TELEMETRY_SDK_LANGUAGE);
 
       // Add parameter attributes if requested
       if (options.traceParams) {
         const parameterValues = _paramsToDict(fn, options.traceParams, args);
         _storeDictInSpan(parameterValues, span, options.flattenAttributes);
-
-        // Log parameters if console export is enabled
-        if (_config!.enable_span_console_export) {
-          console.log(`[ PARAMS] ${spanName}:`, parameterValues);
-        }
       }
 
       // Execute the function
@@ -373,38 +393,11 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
         if (result && typeof result.then === 'function') {
           return result
             .then((value: any) => {
-              if (options.traceReturnValue) {
-                _storeDictInSpan({ return: value }, span, options.flattenAttributes);
-
-                // Log return value if console export is enabled
-                if (_config!.enable_span_console_export) {
-                  console.log(`[SPAN RETURN] ${spanName}:`, { return: value });
-                }
-              }
-
-              // Add any pending log events before ending span
-              if ((span as any)._pendingLogEvents) {
-                for (const event of (span as any)._pendingLogEvents) {
-                  span.addEvent(event.name, event.attributes, event.timestamp);
-                }
-              }
-
-              span.setStatus({ code: SpanStatusCode.OK });
-              span.end();
-              return value;
+              return _finalizeSpanSuccess(span, value, options);
             })
             .catch((error: any) => {
-              // Add any pending log events before ending span
-              if ((span as any)._pendingLogEvents) {
-                for (const event of (span as any)._pendingLogEvents) {
-                  span.addEvent(event.name, event.attributes, event.timestamp);
-                }
-              }
-
-              span.recordException(error);
-              span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-              span.end();
-              void error;
+              _finalizeSpanError(span, error);
+              throw error;
             });
         }
       } else {
@@ -412,42 +405,10 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
         result = fn.apply(thisArg, args);
       }
 
-      if (options.traceReturnValue) {
-        _storeDictInSpan({ return: result }, span, options.flattenAttributes);
-
-        // Log return value if console export is enabled
-        if (_config!.enable_span_console_export) {
-          console.log(`[SPAN RETURN] ${spanName}:`, { return: result });
-        }
-      }
-
-      // Add any pending log events before ending span
-      if ((span as any)._pendingLogEvents) {
-        for (const event of (span as any)._pendingLogEvents) {
-          span.addEvent(event.name, event.attributes, event.timestamp);
-        }
-      }
-
-      span.setStatus({ code: SpanStatusCode.OK });
-      span.end();
-      return result;
+      return _finalizeSpanSuccess(span, result, options);
     } catch (error: any) {
-      // Add any pending log events before ending span
-      if ((span as any)._pendingLogEvents) {
-        for (const event of (span as any)._pendingLogEvents) {
-          span.addEvent(event.name, event.attributes, event.timestamp);
-        }
-      }
-
-      // Log span error
-      if (_config!.enable_span_console_export) {
-        console.log(`[SPAN ERROR] ${spanName}:`, error.message);
-      }
-
-      span.recordException(error);
-      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
-      span.end();
-      void error;
+      _finalizeSpanError(span, error);
+      throw error;
     }
   });
 }

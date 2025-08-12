@@ -1041,80 +1041,40 @@ export class TraceRootLogger {
 
   /**
    * Flush all pending log messages to their destinations
+   * Only resolves when ALL logs are actually sent - no timeouts
    */
   async flush(): Promise<void> {
     return new Promise(resolve => {
-      const allTransports = this.logger.transports;
-      const cloudWatchTransports = allTransports.filter(
+      const cloudWatchTransports = this.logger.transports.filter(
         (transport: any) => transport.constructor.name === 'WinstonCloudWatch'
       );
-      const consoleTransports = allTransports.filter(
-        (transport: any) => transport.constructor.name === 'Console'
-      );
 
-      // If no CloudWatch transports, handle console-only case
+      // If no CloudWatch transports, resolve immediately
       if (cloudWatchTransports.length === 0) {
-        // For console transports, we need to wait longer for async log processing
-        // especially when logs are called without await in sync contexts
-        const waitTime = consoleTransports.length > 0 ? 500 : 100;
-        setTimeout(() => {
-          resolve();
-        }, waitTime);
+        resolve();
         return;
       }
 
-      let flushedCount = 0;
+      let completedTransports = 0;
       const totalTransports = cloudWatchTransports.length;
 
-      cloudWatchTransports.forEach((transport: any, index: number) => {
-        // Try different flush methods that winston-cloudwatch-logs might support
-        if (typeof transport.kthxbye === 'function') {
-          transport.kthxbye((error?: any) => {
-            if (error) {
-            }
+      const onTransportComplete = () => {
+        completedTransports++;
+        if (completedTransports === totalTransports) {
+          resolve(); // Only resolve when ALL transports are done
+        }
+      };
 
-            flushedCount++;
-            if (flushedCount === totalTransports) {
-              // Give a little extra time for final cleanup
-              setTimeout(() => {
-                resolve();
-              }, 200);
-            }
-          });
-        } else if (typeof transport.flush === 'function') {
-          try {
-            transport.flush();
-            flushedCount++;
-            if (flushedCount === totalTransports) {
-              // Wait for the upload cycle to complete
-              setTimeout(() => {
-                resolve();
-              }, 200); // Wait for upload cycle
-            }
-          } catch (error) {
-            console.error(`[ERROR] CloudWatch transport ${index + 1} flush error:`, error);
-            flushedCount++;
-            if (flushedCount === totalTransports) {
-              setTimeout(() => {
-                resolve();
-              }, 200);
-            }
-          }
+      // Flush each CloudWatch transport
+      cloudWatchTransports.forEach((transport: any) => {
+        if (typeof transport.kthxbye === 'function') {
+          // Use winston-cloudwatch's proper flush method
+          transport.kthxbye(onTransportComplete);
         } else {
-          flushedCount++;
-          if (flushedCount === totalTransports) {
-            // Fallback: wait for upload cycle
-            setTimeout(() => {
-              resolve();
-            }, 200); // Wait longer for upload cycle
-          }
+          // If no flush method available, mark as complete
+          onTransportComplete();
         }
       });
-
-      // Safety timeout to prevent hanging (reduced from 500ms to 300ms)
-      setTimeout(() => {
-        resolve();
-      }, 300); // 300ms maximum wait
     });
   }
 }
@@ -1160,78 +1120,33 @@ export function forceFlushLogger(): Promise<void> {
  * Shutdown all logger transports and stop background processes.
  * Works for both sync and async usage.
  */
-export function shutdownLogger(): Promise<void> {
-  if (_globalLogger) {
-    return new Promise<void>(resolve => {
-      try {
-        // Close all transports to stop background processes
-        const shutdownPromises: Promise<any>[] = [];
-        const transports = (_globalLogger as any).logger.transports;
-
-        transports.forEach((transport: any, index: number) => {
-          void index;
-          try {
-            // For winston-cloudwatch specifically, call kthxbye() first
-            if (typeof transport.kthxbye === 'function') {
-              const result = transport.kthxbye();
-              // If kthxbye returns a promise, wait for it
-              if (result && typeof result.then === 'function') {
-                shutdownPromises.push(
-                  result
-                    .then(() => {})
-                    .catch((err: any) => {
-                      void err;
-                    })
-                );
-              } else {
-              }
-            }
-            // Close the transport to stop background processes
-            if (typeof transport.close === 'function') {
-              transport.close();
-            }
-            if (typeof transport.end === 'function') {
-              transport.end();
-            }
-            // For stream transports, destroy the underlying stream
-            if (transport.stream && typeof transport.stream.destroy === 'function') {
-              transport.stream.destroy();
-            }
-          } catch (e) {
-            void e;
-          }
-        });
-
-        // Clear all transports from the logger
-        transports.length = 0;
-
-        // Clear the global logger reference
-        _globalLogger = null;
-
-        // Wait for all async cleanup operations with a timeout
-        if (shutdownPromises.length > 0) {
-          Promise.race([
-            Promise.all(shutdownPromises),
-            new Promise(resolve => setTimeout(resolve, 1000)), // 1 second timeout
-          ])
-            .then(() => {
-              resolve();
-            })
-            .catch(err => {
-              void err;
-              resolve();
-            });
-        } else {
-          resolve();
-        }
-      } catch (error: any) {
-        void error;
-        resolve();
-      }
-    });
-  } else {
-    return Promise.resolve();
+export async function shutdownLogger(): Promise<void> {
+  if (!_globalLogger) {
+    return;
   }
+
+  // First flush all logs
+  await _globalLogger.flush();
+
+  // Then shutdown transports
+  const transports = (_globalLogger as any).logger.transports;
+  transports.forEach((transport: any) => {
+    try {
+      if (typeof transport.close === 'function') {
+        transport.close();
+      }
+      if (typeof transport.end === 'function') {
+        transport.end();
+      }
+    } catch (error) {
+      // Ignore shutdown errors
+      void error;
+    }
+  });
+
+  // Clear everything
+  transports.length = 0;
+  _globalLogger = null;
 }
 
 /**

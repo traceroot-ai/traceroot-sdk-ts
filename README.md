@@ -1,4 +1,9 @@
 <div align="center">
+  <a href="https://traceroot.ai/">
+    <img src="misc/images/traceroot_logo.png" alt="TraceRoot Logo" width="70%">
+  </a>
+</div>
+<div align="center">
 
 [![Testing Status][testing-image]][testing-url]
 [![Documentation][docs-image]][docs-url]

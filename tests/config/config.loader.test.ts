@@ -10,7 +10,7 @@ import { join } from 'path';
 import {
   findTypescriptConfig,
   loadTypescriptConfigSync
-} from '../src/utils/configLoader';
+} from '../../src/utils/configLoader';
 
 // Mock modules to avoid side effects
 jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
