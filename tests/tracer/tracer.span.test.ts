@@ -63,7 +63,7 @@ describe('Tracer Span Helper Functions', () => {
         { name: 'log.info', attributes: { message: 'test1' }, timestamp: Date.now() },
         { name: 'log.error', attributes: { message: 'test2' }, timestamp: Date.now() },
       ];
-      
+
       // Simulate pending events
       (mockSpan as any)._pendingLogEvents = pendingEvents;
 
@@ -92,7 +92,7 @@ describe('Tracer Span Helper Functions', () => {
   describe('Span Success Finalization', () => {
     test('should finalize span successfully with return value tracing enabled', () => {
       const testValue = { key: 'value', number: 42 };
-      
+
       const testFn = traceroot.traceFunction(function testFunction() {
         return testValue;
       }, { traceReturnValue: true });
@@ -103,7 +103,7 @@ describe('Tracer Span Helper Functions', () => {
 
     test('should finalize span successfully with return value tracing disabled', () => {
       const testValue = 'simple return';
-      
+
       const testFn = traceroot.traceFunction(function testFunction() {
         return testValue;
       }, { traceReturnValue: false });
@@ -118,7 +118,7 @@ describe('Tracer Span Helper Functions', () => {
         array: [1, 2, 3],
         boolean: true,
       };
-      
+
       const testFn = traceroot.traceFunction(function testFunction() {
         return complexValue;
       }, { traceReturnValue: true, flattenAttributes: true });
@@ -129,7 +129,7 @@ describe('Tracer Span Helper Functions', () => {
 
     test('should handle async function success path', async () => {
       const testValue = 'async result';
-      
+
       const testFn = traceroot.traceFunction(async function testAsyncFunction() {
         await new Promise(resolve => setTimeout(resolve, 10));
         return testValue;
@@ -143,7 +143,7 @@ describe('Tracer Span Helper Functions', () => {
   describe('Span Error Finalization', () => {
     test('should finalize span with error for sync functions', () => {
       const testError = new Error('Test sync error');
-      
+
       const testFn = traceroot.traceFunction(function testFunction() {
         throw testError;
       });
@@ -153,7 +153,7 @@ describe('Tracer Span Helper Functions', () => {
 
     test('should finalize span with error for async functions', async () => {
       const testError = new Error('Test async error');
-      
+
       const testFn = traceroot.traceFunction(async function testAsyncFunction() {
         await new Promise(resolve => setTimeout(resolve, 10));
         throw testError;
@@ -164,7 +164,7 @@ describe('Tracer Span Helper Functions', () => {
 
     test('should handle error with pending log events', () => {
       const testError = new Error('Error with logs');
-      
+
       const testFn = traceroot.traceFunction(function testFunction() {
         const logger = traceroot.get_logger();
         logger.info('Before error');
@@ -177,7 +177,7 @@ describe('Tracer Span Helper Functions', () => {
 
     test('should handle async error with pending log events', async () => {
       const testError = new Error('Async error with logs');
-      
+
       const testFn = traceroot.traceFunction(async function testAsyncFunction() {
         const logger = traceroot.get_logger();
         logger.info('Async before error');
@@ -216,10 +216,10 @@ describe('Tracer Span Helper Functions', () => {
       const outerFn = traceroot.traceFunction(async function outerFunction(value: number) {
         const logger = traceroot.get_logger();
         logger.info('Starting outer function');
-        
+
         const doubled = innerFn(value);
         logger.info(`Doubled value: ${doubled}`);
-        
+
         await new Promise(resolve => setTimeout(resolve, 5));
         return doubled + 10;
       }, { spanName: 'outer', traceReturnValue: true });
