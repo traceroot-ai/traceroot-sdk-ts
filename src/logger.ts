@@ -111,6 +111,9 @@ const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string)
               'meta',
             ]);
 
+            // Collect metadata for span attributes
+            const metadataForSpanAttributes: Record<string, any> = {};
+
             Object.keys(info).forEach(key => {
               if (!knownProperties.has(key)) {
                 const value = info[key];
@@ -121,11 +124,22 @@ const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string)
                   typeof value === 'boolean'
                 ) {
                   attributes[`log.${key}`] = value;
+                  metadataForSpanAttributes[key] = value;
                 } else if (value !== null && value !== undefined) {
                   attributes[`log.${key}`] = String(value);
+                  metadataForSpanAttributes[key] = String(value);
                 }
               }
             });
+
+            // Add metadata to span as attributes for searchability (in addition to events)
+            if (Object.keys(metadataForSpanAttributes).length > 0) {
+              const spanAttributes: Record<string, any> = {};
+              Object.keys(metadataForSpanAttributes).forEach(key => {
+                spanAttributes[`log.metadata.${key}`] = metadataForSpanAttributes[key];
+              });
+              span.setAttributes(spanAttributes);
+            }
 
             // Add the log as an event to the span (let OpenTelemetry handle timestamp automatically)
             span.addEvent(`log.${info.level}`, attributes);
@@ -935,10 +949,53 @@ export class TraceRootLogger {
     }
   }
 
+  /**
+   * Add logging metadata to the current span as attributes
+   * This allows metadata to be searchable and filterable in tracing systems
+   */
+  private addMetadataToSpanAttributes(metadata: any): void {
+    if (!metadata || Object.keys(metadata).length === 0) {
+      return;
+    }
+
+    try {
+      const span = otelTrace.getActiveSpan();
+      if (!span || !span.isRecording()) {
+        return;
+      }
+
+      // Filter and format metadata for span attributes
+      const spanAttributes: Record<string, any> = {};
+
+      Object.keys(metadata).forEach(key => {
+        const value = metadata[key];
+        // Only add primitive values as span attributes (strings, numbers, booleans)
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          // Use a consistent prefix for log metadata attributes
+          spanAttributes[`log.metadata.${key}`] = value;
+        } else if (value !== null && value !== undefined) {
+          // Convert complex types to strings
+          spanAttributes[`log.metadata.${key}`] = String(value);
+        }
+      });
+
+      // Set the attributes on the span
+      if (Object.keys(spanAttributes).length > 0) {
+        span.setAttributes(spanAttributes);
+      }
+    } catch {
+      // Don't let attribute setting errors interfere with the application
+    }
+  }
+
   async debug(messageOrObj: string | any, ...args: any[]): Promise<void> {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
+
+    // Add metadata to span as attributes for searchability
+    this.addMetadataToSpanAttributes(metadata);
+
     this.addSpanEventDirectly('debug', message, logData);
 
     // Log to console if enabled (pass only user metadata, not internal logData)
@@ -960,6 +1017,10 @@ export class TraceRootLogger {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
+
+    // Add metadata to span as attributes for searchability
+    this.addMetadataToSpanAttributes(metadata);
+
     this.addSpanEventDirectly('info', message, logData);
 
     // Log to console if enabled (pass only user metadata, not internal logData)
@@ -980,6 +1041,10 @@ export class TraceRootLogger {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
+
+    // Add metadata to span as attributes for searchability
+    this.addMetadataToSpanAttributes(metadata);
+
     this.addSpanEventDirectly('warn', message, logData);
 
     // Log to console if enabled (pass only user metadata, not internal logData)
@@ -1001,6 +1066,10 @@ export class TraceRootLogger {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, stack_trace: stackTrace };
+
+    // Add metadata to span as attributes for searchability
+    this.addMetadataToSpanAttributes(metadata);
+
     this.addSpanEventDirectly('error', message, logData);
 
     // Log to console if enabled (pass only user metadata, not internal logData)
@@ -1022,6 +1091,10 @@ export class TraceRootLogger {
     const { message, metadata } = this.processLogArgs(messageOrObj, ...args);
     const stackTrace = getStackTrace(this.config);
     const logData = { ...metadata, level: 'critical', stack_trace: stackTrace };
+
+    // Add metadata to span as attributes for searchability
+    this.addMetadataToSpanAttributes(metadata);
+
     this.addSpanEventDirectly('critical', message, logData);
 
     // Log to console if enabled (use 'error' level for critical in console, pass only user metadata)
