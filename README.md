@@ -172,6 +172,8 @@ main().then(async () => {
 });
 ```
 
+### Logging with Metadata
+
 You can also log with some metadata and make it searchable in the TraceRoot UI via:
 
 ```typescript
