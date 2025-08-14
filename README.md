@@ -222,6 +222,7 @@ In the example above, you can search for `requestId` in the TraceRoot UI by
 1. Type `requestId` in the first input box.
 1. Select `=` and in the second input box type `123` for this example.
 1. Type Enter button to add that criteria to search. Then you can see all traces or workflows with `requestId` as `123` logging metadata in the TraceRoot UI.
+1. Notice that within the same trace decorator or `traceFunction` call, a new logging metadata will replace the previous one. For example, if you have two `logger.info` calls with first one having `requestId` as `123` and the second one having `requestId` as `456`, the second one will replace the first one at last. For now, to avoid this, you may need to add a new `traceFunction` call or a new `trace` decorator.
 
 <div align="center">
   <img src="misc/images/log_metadata_search.png" alt="Log Metadata Search" width="90%">
