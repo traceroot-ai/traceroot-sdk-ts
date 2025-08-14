@@ -133,6 +133,7 @@ const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string)
             });
 
             // Add metadata to span as attributes for searchability (in addition to events)
+            // These metadata are searchable in the TraceRoot UI
             if (Object.keys(metadataForSpanAttributes).length > 0) {
               const spanAttributes: Record<string, any> = {};
               Object.keys(metadataForSpanAttributes).forEach(key => {
