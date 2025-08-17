@@ -12,7 +12,7 @@ describe('Credential Fetching Fallback Mechanism', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Create a mock config
     mockConfig = new TraceRootConfigImpl({
       service_name: 'test-service',
