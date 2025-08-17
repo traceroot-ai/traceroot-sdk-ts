@@ -251,6 +251,7 @@ npm run format
 npm run lint --fix
 npx prettier --write [JS-CONFIG-FILE]
 npm run test # Run tests
+npm test -- tests/logger/logger.pathProcessing.test.ts # Run a specific test
 ```
 
 ### Publish to npm

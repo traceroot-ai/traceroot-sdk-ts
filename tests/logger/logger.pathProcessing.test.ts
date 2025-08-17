@@ -63,6 +63,12 @@ describe('Logger Path Processing', () => {
       // Also handle webpack-internal:/// without parentheses
       processedPath = processedPath.replace(/webpack-internal:\/\/\//, '');
 
+      // Clean up the path before trying to find actual file location
+      // Handle paths that start with './' - remove the './' prefix
+      if (processedPath.startsWith('./')) {
+        processedPath = processedPath.substring(2);
+      }
+
       // For webpack paths, try to find the actual file location in the repository
       const actualPath = findActualFilePath(processedPath);
       if (actualPath) {
@@ -247,6 +253,19 @@ describe('Logger Path Processing', () => {
       // Should contain meaningful paths
       expect(result1).toContain('src/components/Button.tsx');
       expect(result2).toContain('pages/api/handler.ts');
+    });
+
+    test('should handle webpack-internal RSC paths with ./ prefix correctly', () => {
+      const input = 'webpack-internal:///(rsc)/./app/api/middleware.ts';
+
+      const result = processPathFormat(input);
+
+      // Should strip webpack-internal prefix
+      expect(result).not.toContain('webpack-internal:///');
+      // Should remove ./ prefix and return clean path
+      expect(result).toBe('app/api/middleware.ts');
+      // Should not start with ./ prefix
+      expect(result.startsWith('./')).toBe(false);
     });
   });
 
