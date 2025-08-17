@@ -93,6 +93,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     } else {
       console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
+  } else {
+    console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   }
 
   // Update the global config with full config object
@@ -218,11 +220,13 @@ export function shutdownTracing(): Promise<void> {
     return shutdownPromise
       .then(() => {
         _tracerProvider = null;
+        _config = null;
         _isShuttingDown = false;
       })
       .catch((error: any) => {
         // Ensure cleanup happens even if shutdown fails
         _tracerProvider = null;
+        _config = null;
         _isShuttingDown = false;
         throw error;
       });
@@ -267,6 +271,7 @@ function setupProcessExitHandlers(): void {
   const cleanup = () => {
     if (_tracerProvider !== null) {
       _tracerProvider = null;
+      _config = null;
     }
   };
 

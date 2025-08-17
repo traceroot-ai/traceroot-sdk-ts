@@ -3,11 +3,18 @@
  * Tests the internal span finalization and event handling logic
  */
 
+// Disable auto-initialization for tests to avoid config file interference
+process.env.TRACEROOT_DISABLE_AUTO_INIT = 'true';
+
 import { jest } from '@jest/globals';
 import { Span, SpanStatusCode } from '@opentelemetry/api';
 import * as traceroot from '../../src/index';
 import { TraceRootConfig } from '../../src/config';
-import { TraceOptionsImpl } from '../../src/tracer';
+
+// Mock the credential fetching function
+jest.mock('../../src/api/credential', () => ({
+  fetchAwsCredentialsSync: jest.fn(),
+}));
 
 // Mock span for testing
 const createMockSpan = () => {
@@ -42,7 +49,7 @@ describe('Tracer Span Helper Functions', () => {
     environment: 'test',
     local_mode: true,
     enable_span_console_export: false,
-    enable_log_console_export: false,
+    enable_log_console_export: true,
   };
 
   beforeEach(() => {
@@ -278,6 +285,86 @@ describe('Tracer Span Helper Functions', () => {
 
       const result = testFn();
       expect(result).toBe('anonymous result');
+    });
+  });
+
+  describe('Local Mode AWS Credential Behavior', () => {
+    test('should not fetch AWS credentials when local_mode is true', async () => {
+      const { fetchAwsCredentialsSync } = require('../../src/api/credential');
+
+      // Shutdown any existing tracer
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
+
+      // Clear any previous calls
+      jest.clearAllMocks();
+
+      const localModeConfig: Partial<TraceRootConfig> = {
+        service_name: 'test-service',
+        github_owner: 'test-owner',
+        github_repo_name: 'test-repo',
+        github_commit_hash: 'test-commit',
+        environment: 'test',
+        local_mode: true, // This should prevent AWS credential fetching
+        token: 'test-token',
+      };
+
+      // Initialize with local mode
+      traceroot.init(localModeConfig);
+
+      // Verify that AWS credentials were not fetched
+      expect(fetchAwsCredentialsSync).not.toHaveBeenCalled();
+
+      // Clean up
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
+    });
+
+    test('should fetch AWS credentials when local_mode is false', async () => {
+      const { fetchAwsCredentialsSync } = require('../../src/api/credential');
+
+      // Shutdown any existing tracer
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
+
+      // Clear any previous calls
+      jest.clearAllMocks();
+
+      // Mock the credentials response
+      fetchAwsCredentialsSync.mockReturnValue({
+        hash: 'test-hash',
+        otlp_endpoint: 'http://test-endpoint:4318/v1/traces',
+        aws_access_key_id: 'test-key',
+        aws_secret_access_key: 'test-secret',
+        aws_session_token: 'test-token',
+        region: 'us-west-2',
+        expiration_utc: new Date(Date.now() + 3600000),
+      });
+
+      const nonLocalModeConfig: Partial<TraceRootConfig> = {
+        service_name: 'test-service',
+        github_owner: 'test-owner',
+        github_repo_name: 'test-repo',
+        github_commit_hash: 'test-commit',
+        environment: 'test',
+        local_mode: false, // This should trigger AWS credential fetching
+        token: 'test-token',
+      };
+
+      // Initialize without local mode
+      traceroot.init(nonLocalModeConfig);
+
+      // Verify that AWS credentials were fetched
+      expect(fetchAwsCredentialsSync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          local_mode: false,
+          token: 'test-token',
+        })
+      );
+
+      // Clean up
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
     });
   });
 });
