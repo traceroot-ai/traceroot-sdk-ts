@@ -539,7 +539,7 @@ export class TraceRootLogger {
     this.loggerName = name || config.service_name;
 
     this.logger = winston.createLogger({
-      level: 'debug',
+      level: !config.enable_log_console_export ? 'silent' : 'debug',
       format: winston.format.combine(
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
         traceCorrelationFormat(config, this.loggerName)(),
@@ -805,7 +805,7 @@ export class TraceRootLogger {
       // Create a simple transport that does nothing but prevents Winston warnings
       const nullTransport = new winston.transports.Stream({
         stream: require('fs').createWriteStream('/dev/null'),
-        level: 'debug',
+        level: 'silent', // Set to silent to minimize processing
       });
       this.logger.add(nullTransport);
     }

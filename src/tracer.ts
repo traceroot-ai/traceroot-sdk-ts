@@ -93,6 +93,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     } else {
       console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
+  } else {
+    console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   }
 
   // Update the global config with full config object
@@ -119,14 +121,15 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // Local mode: use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
   // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
-  const spanProcessor = config.local_mode
-    ? new SimpleSpanProcessor(traceExporter)
-    : new BatchSpanProcessor(traceExporter, {
-        maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-        exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-        scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-        maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-      });
+  // const spanProcessor = config.local_mode
+  //   ? new SimpleSpanProcessor(traceExporter)
+  //   : new BatchSpanProcessor(traceExporter, {
+  //       maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+  //       exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+  //       scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+  //       maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+  //     });
+  const spanProcessor = new SimpleSpanProcessor(traceExporter);
 
   // Prepare span processors array
   const spanProcessors = [spanProcessor];
@@ -135,14 +138,15 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // This will log the spans to the console for debugging purposes etc.
   if (config.enable_span_console_export) {
     const consoleExporter = new ConsoleSpanExporter();
-    const consoleProcessor = config.local_mode
-      ? new SimpleSpanProcessor(consoleExporter)
-      : new BatchSpanProcessor(consoleExporter, {
-          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-        });
+    // const consoleProcessor = config.local_mode
+    //   ? new SimpleSpanProcessor(consoleExporter)
+    //   : new BatchSpanProcessor(consoleExporter, {
+    //       maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+    //       exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+    //       scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+    //       maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+    //     });
+    const consoleProcessor = new SimpleSpanProcessor(consoleExporter);
     spanProcessors.push(consoleProcessor);
   }
 
@@ -218,11 +222,13 @@ export function shutdownTracing(): Promise<void> {
     return shutdownPromise
       .then(() => {
         _tracerProvider = null;
+        _config = null;
         _isShuttingDown = false;
       })
       .catch((error: any) => {
         // Ensure cleanup happens even if shutdown fails
         _tracerProvider = null;
+        _config = null;
         _isShuttingDown = false;
         throw error;
       });
@@ -267,6 +273,7 @@ function setupProcessExitHandlers(): void {
   const cleanup = () => {
     if (_tracerProvider !== null) {
       _tracerProvider = null;
+      _config = null;
     }
   };
 
