@@ -217,6 +217,12 @@ function processPathFormat(filepath: string, config?: TraceRootConfigImpl): stri
     // Also handle webpack-internal:/// without parentheses
     processedPath = processedPath.replace(/webpack-internal:\/\/\//, '');
 
+    // Clean up the path before trying to find actual file location
+    // Handle paths that start with './' - remove the './' prefix
+    if (processedPath.startsWith('./')) {
+      processedPath = processedPath.substring(2);
+    }
+
     // For webpack paths, try to find the actual file location in the repository
     const actualPath = findActualFilePath(processedPath);
     if (actualPath) {
