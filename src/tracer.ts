@@ -121,15 +121,14 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // Local mode: use SimpleSpanProcessor for immediate export when span ends
   // This ensures spans are only exported when their function actually completes
   // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
-  // const spanProcessor = config.local_mode
-  //   ? new SimpleSpanProcessor(traceExporter)
-  //   : new BatchSpanProcessor(traceExporter, {
-  //       maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-  //       exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-  //       scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-  //       maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-  //     });
-  const spanProcessor = new SimpleSpanProcessor(traceExporter);
+  const spanProcessor = config.local_mode
+    ? new SimpleSpanProcessor(traceExporter)
+    : new BatchSpanProcessor(traceExporter, {
+        maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+        exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+        scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+        maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+      });
 
   // Prepare span processors array
   const spanProcessors = [spanProcessor];
@@ -138,15 +137,14 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // This will log the spans to the console for debugging purposes etc.
   if (config.enable_span_console_export) {
     const consoleExporter = new ConsoleSpanExporter();
-    // const consoleProcessor = config.local_mode
-    //   ? new SimpleSpanProcessor(consoleExporter)
-    //   : new BatchSpanProcessor(consoleExporter, {
-    //       maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-    //       exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-    //       scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-    //       maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-    //     });
-    const consoleProcessor = new SimpleSpanProcessor(consoleExporter);
+    const consoleProcessor = config.local_mode
+      ? new SimpleSpanProcessor(consoleExporter)
+      : new BatchSpanProcessor(consoleExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
     spanProcessors.push(consoleProcessor);
   }
 

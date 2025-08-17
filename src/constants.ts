@@ -26,8 +26,8 @@ export const TRACER_NAME = 'traceroot';
  * BatchSpanProcessor configuration constants
  */
 export const BATCH_SPAN_PROCESSOR_CONFIG = {
-  MAX_EXPORT_BATCH_SIZE: 10,
-  EXPORT_TIMEOUT_MILLIS: 5000,
+  MAX_EXPORT_BATCH_SIZE: 5,
+  EXPORT_TIMEOUT_MILLIS: 500,
   SCHEDULED_DELAY_MILLIS: 500,
-  MAX_QUEUE_SIZE: 100,
+  MAX_QUEUE_SIZE: 50,
 } as const;
