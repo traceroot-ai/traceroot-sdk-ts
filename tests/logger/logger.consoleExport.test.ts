@@ -19,6 +19,7 @@ describe('Console Export Logging', () => {
       github_commit_hash: 'test-hash',
       environment: 'test',
       enable_log_console_export: true,
+      enable_log_cloud_export: false,
       local_mode: false,
     });
 
@@ -45,6 +46,7 @@ describe('Console Export Logging', () => {
       github_commit_hash: 'test-hash',
       environment: 'test',
       enable_log_console_export: true,
+      enable_log_cloud_export: false,
       local_mode: false,
     });
 
@@ -69,6 +71,7 @@ describe('Console Export Logging', () => {
       github_commit_hash: 'test-hash',
       environment: 'test',
       enable_log_console_export: true,
+      enable_log_cloud_export: false,
       local_mode: false,
     });
 
@@ -93,6 +96,7 @@ describe('Console Export Logging', () => {
       github_commit_hash: 'test-hash',
       environment: 'test',
       enable_log_console_export: false, // Disabled
+      enable_log_cloud_export: false, // Disabled to prevent cloud setup
       local_mode: false,
     });
 
@@ -113,6 +117,7 @@ describe('Console Export Logging', () => {
       github_commit_hash: 'test-hash',
       environment: 'test',
       enable_log_console_export: true,
+      enable_log_cloud_export: false,
       local_mode: false,
     });
 

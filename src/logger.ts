@@ -580,8 +580,8 @@ export class TraceRootLogger {
    * Returns the current valid credentials or null if no credentials available
    */
   private async checkAndRefreshCredentials(): Promise<AwsCredentials | null> {
-    // If we're in local mode, no credentials needed
-    if (this.config.local_mode) {
+    // If we're in local mode or cloud export is disabled, no credentials needed
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       return null;
     }
 
@@ -748,8 +748,8 @@ export class TraceRootLogger {
       });
     }
 
-    // Setup appropriate transport based on mode
-    if (!this.config.local_mode) {
+    // Setup appropriate transport based on mode and cloud export setting
+    if (!this.config.local_mode && this.config.enable_log_cloud_export) {
       this.setupCloudWatchTransport();
     } else {
       this.setupLocalTransport();
@@ -801,20 +801,17 @@ export class TraceRootLogger {
   }
 
   private setupLocalTransport(): void {
-    // For local mode, logs are handled by:
+    // For local mode or when cloud export is disabled, logs are handled by:
     // 1. Console output (if enable_log_console_export is true, handled in setupTransports)
     // 2. Direct span events (handled in addSpanEventDirectly)
 
-    // If console export is disabled, we still need a transport to prevent Winston warnings
-    // Add a minimal null transport that doesn't output anything but prevents "no transports" error
-    if (!this.config.enable_log_console_export) {
-      // Create a simple transport that does nothing but prevents Winston warnings
-      const nullTransport = new winston.transports.Stream({
-        stream: require('fs').createWriteStream('/dev/null'),
-        level: 'silent', // Set to silent to minimize processing
-      });
-      this.logger.add(nullTransport);
-    }
+    // Always add a minimal null transport to prevent Winston warnings
+    // Create a simple transport that does nothing but prevents "no transports" error
+    const nullTransport = new winston.transports.Console({
+      level: 'silent', // Set to silent to minimize processing
+      silent: true, // Make it completely silent
+    });
+    this.logger.add(nullTransport);
   }
 
   private incrementSpanLogCount(attributeName: string): void {
@@ -1008,7 +1005,7 @@ export class TraceRootLogger {
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('debug', message, metadata);
 
-    if (this.config.local_mode) {
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       this.logger.debug(message, logData);
       this.incrementSpanLogCount('num_debug_logs');
       return;
@@ -1033,7 +1030,7 @@ export class TraceRootLogger {
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('info', message, metadata);
 
-    if (this.config.local_mode) {
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       this.logger.info(message, logData);
       this.incrementSpanLogCount('num_info_logs');
       return;
@@ -1057,7 +1054,7 @@ export class TraceRootLogger {
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('warn', message, metadata);
 
-    if (this.config.local_mode) {
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       this.logger.warn(message, logData);
       this.incrementSpanLogCount('num_warning_logs');
       return;
@@ -1082,7 +1079,7 @@ export class TraceRootLogger {
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('error', message, metadata);
 
-    if (this.config.local_mode) {
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       this.logger.error(message, logData);
       this.incrementSpanLogCount('num_error_logs');
       return;
@@ -1107,7 +1104,7 @@ export class TraceRootLogger {
     // Log to console if enabled (use 'error' level for critical in console, pass only user metadata)
     this.logToConsole('error', message, metadata);
 
-    if (this.config.local_mode) {
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       this.logger.error(message, logData);
       this.incrementSpanLogCount('num_critical_logs');
       return;
