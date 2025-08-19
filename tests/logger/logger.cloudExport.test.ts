@@ -3,7 +3,7 @@
  */
 
 import { TraceRootConfigImpl } from '../../src/config';
-import { initializeLogger, shutdownLogger } from '../../src/logger';
+import { initializeLogger, shutdownLogger, forceFlushLogger } from '../../src/logger';
 
 // Mock the AWS credential fetching
 jest.mock('../../src/api/credential', () => ({
@@ -178,5 +178,108 @@ describe('Cloud Export Logging', () => {
     });
 
     expect(config.enable_log_cloud_export).toBe(false);
+  });
+
+  test('should handle forceFlushLogger gracefully when enable_log_cloud_export is false', async () => {
+    const config = new TraceRootConfigImpl({
+      service_name: 'test-service',
+      github_owner: 'test',
+      github_repo_name: 'test-repo',
+      github_commit_hash: 'test-hash',
+      environment: 'test',
+      enable_log_cloud_export: false,
+      local_mode: false,
+    });
+
+    const logger = initializeLogger(config);
+
+    // Log some messages
+    await logger.info('Test message 1');
+    await logger.warn('Test message 2');
+    await logger.error('Test message 3');
+
+    // forceFlushLogger should complete successfully without errors
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+  });
+
+  test('should handle shutdownLogger gracefully when enable_log_cloud_export is false', async () => {
+    const config = new TraceRootConfigImpl({
+      service_name: 'test-service',
+      github_owner: 'test',
+      github_repo_name: 'test-repo',
+      github_commit_hash: 'test-hash',
+      environment: 'test',
+      enable_log_cloud_export: false,
+      local_mode: false,
+    });
+
+    const logger = initializeLogger(config);
+
+    // Log some messages
+    await logger.info('Test message 1');
+    await logger.warn('Test message 2');
+    await logger.error('Test message 3');
+
+    // shutdownLogger should complete successfully without errors
+    await expect(shutdownLogger()).resolves.not.toThrow();
+  });
+
+  test('should handle forceFlushLogger and shutdownLogger in local mode', async () => {
+    const config = new TraceRootConfigImpl({
+      service_name: 'test-service',
+      github_owner: 'test',
+      github_repo_name: 'test-repo',
+      github_commit_hash: 'test-hash',
+      environment: 'test',
+      enable_log_cloud_export: false,
+      local_mode: true,
+    });
+
+    const logger = initializeLogger(config);
+
+    // Log some messages
+    await logger.info('Test message 1');
+    await logger.warn('Test message 2');
+    await logger.error('Test message 3');
+
+    // Both operations should complete successfully without errors
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+    await expect(shutdownLogger()).resolves.not.toThrow();
+  });
+
+  test('should handle forceFlushLogger when no global logger exists', async () => {
+    // Ensure no global logger is set
+    await shutdownLogger();
+
+    // forceFlushLogger should handle the case gracefully when no logger exists
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+  });
+
+  test('should handle multiple consecutive flush and shutdown calls when cloud export is disabled', async () => {
+    const config = new TraceRootConfigImpl({
+      service_name: 'test-service',
+      github_owner: 'test',
+      github_repo_name: 'test-repo',
+      github_commit_hash: 'test-hash',
+      environment: 'test',
+      enable_log_cloud_export: false,
+      local_mode: false,
+    });
+
+    const logger = initializeLogger(config);
+
+    // Log some messages
+    await logger.info('Test message 1');
+
+    // Multiple flush calls should not cause issues
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+    await expect(forceFlushLogger()).resolves.not.toThrow();
+
+    // Shutdown should work after multiple flushes
+    await expect(shutdownLogger()).resolves.not.toThrow();
+
+    // Additional shutdown calls should be handled gracefully
+    await expect(shutdownLogger()).resolves.not.toThrow();
   });
 });

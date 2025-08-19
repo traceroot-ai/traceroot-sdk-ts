@@ -80,23 +80,23 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
 
-  // If not in local mode and cloud logging is enabled, fetch AWS credentials and update config before creating tracer
-  if (!config.local_mode && config.enable_log_cloud_export) {
+  // If not in local mode, fetch AWS credentials for tracing (independent of logging configuration)
+  if (!config.local_mode) {
     const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
     if (credentials) {
       // Update config with fetched credentials
       config._name = credentials.hash;
       config.otlp_endpoint = credentials.otlp_endpoint;
 
-      // Store credentials in config for logger to use later
-      (config as any)._awsCredentials = credentials;
+      // Store credentials in config for logger to use later (only if cloud logging is enabled)
+      if (config.enable_log_cloud_export) {
+        (config as any)._awsCredentials = credentials;
+      }
     } else {
       console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
-  } else if (config.local_mode) {
-    console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   } else {
-    console.log(`[TraceRoot] Cloud logging disabled - skipping AWS credentials fetch`);
+    console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   }
 
   // Update the global config with full config object

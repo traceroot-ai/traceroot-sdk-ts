@@ -26,9 +26,11 @@ export interface TraceRootConfig {
   // Environment
   environment?: string;
 
-  // Tracing options
+  // Console export
   enable_span_console_export?: boolean;
   enable_log_console_export?: boolean;
+
+  // Cloud export
   enable_log_cloud_export?: boolean;
 
   // Local mode

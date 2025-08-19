@@ -1121,6 +1121,11 @@ export class TraceRootLogger {
    * Only resolves when ALL logs are actually sent - no timeouts
    */
   async flush(): Promise<void> {
+    // If cloud export is disabled or we're in local mode, there's nothing to flush
+    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
+      return Promise.resolve();
+    }
+
     return new Promise(resolve => {
       const cloudWatchTransports = this.logger.transports.filter(
         (transport: any) => transport.constructor.name === 'WinstonCloudWatch'
@@ -1202,8 +1207,13 @@ export async function shutdownLogger(): Promise<void> {
     return;
   }
 
-  // First flush all logs
-  await _globalLogger.flush();
+  try {
+    // First flush all logs (this already handles the case where cloud export is disabled)
+    await _globalLogger.flush();
+  } catch (error) {
+    // Ignore flush errors to prevent hanging during shutdown
+    console.warn('[TraceRoot] Logger flush failed during shutdown (non-critical):', error);
+  }
 
   // Then shutdown transports
   const transports = (_globalLogger as any).logger.transports;
@@ -1221,6 +1231,26 @@ export async function shutdownLogger(): Promise<void> {
     }
   });
 
+  // Also shutdown console logger if it exists
+  const consoleLogger = (_globalLogger as any).consoleLogger;
+  if (consoleLogger) {
+    const consoleTransports = consoleLogger.transports;
+    consoleTransports.forEach((transport: any) => {
+      try {
+        if (typeof transport.close === 'function') {
+          transport.close();
+        }
+        if (typeof transport.end === 'function') {
+          transport.end();
+        }
+      } catch (error) {
+        // Ignore shutdown errors
+        void error;
+      }
+    });
+    consoleTransports.length = 0;
+  }
+
   // Clear everything
   transports.length = 0;
   _globalLogger = null;
@@ -1232,6 +1262,21 @@ export async function shutdownLogger(): Promise<void> {
  */
 export function forceFlushLoggerSync(): void {
   if (!_globalLogger) {
+    return;
+  }
+
+  // If cloud export is disabled, there's nothing to flush asynchronously
+  if (
+    (_globalLogger as any).config.local_mode ||
+    !(_globalLogger as any).config.enable_log_cloud_export
+  ) {
+    // For console logger in sync contexts, give it a small delay to ensure output appears
+    if ((_globalLogger as any).consoleLogger) {
+      const start = Date.now();
+      while (Date.now() - start < 100) {
+        // Brief blocking delay for console output
+      }
+    }
     return;
   }
 

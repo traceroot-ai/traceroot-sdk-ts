@@ -366,5 +366,76 @@ describe('Tracer Span Helper Functions', () => {
       await traceroot.shutdownTracing();
       await traceroot.shutdownLogger();
     });
+
+    test('should fetch AWS credentials when local_mode is false even with cloud logging disabled', async () => {
+      const { fetchAwsCredentialsSync } = require('../../src/api/credential');
+
+      // Shutdown any existing tracer
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
+
+      // Clear any previous calls
+      jest.clearAllMocks();
+
+      // Mock the credentials response
+      fetchAwsCredentialsSync.mockReturnValue({
+        hash: 'test-hash-no-logging',
+        otlp_endpoint: 'http://test-endpoint:4318/v1/traces',
+        aws_access_key_id: 'test-key',
+        aws_secret_access_key: 'test-secret',
+        aws_session_token: 'test-token',
+        region: 'us-west-2',
+        expiration_utc: new Date(Date.now() + 3600000),
+      });
+
+      const nonLocalModeNoLoggingConfig: Partial<TraceRootConfig> = {
+        service_name: 'test-service',
+        github_owner: 'test-owner',
+        github_repo_name: 'test-repo',
+        github_commit_hash: 'test-commit',
+        environment: 'test',
+        local_mode: false, // Should trigger AWS credential fetching for tracing
+        enable_log_cloud_export: false, // Cloud logging disabled - but tracing should still work
+        token: 'test-token',
+      };
+
+      // Initialize without local mode but with cloud logging disabled
+      traceroot.init(nonLocalModeNoLoggingConfig);
+
+      // Verify that AWS credentials were still fetched for tracing
+      expect(fetchAwsCredentialsSync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          local_mode: false,
+          enable_log_cloud_export: false,
+          token: 'test-token',
+        })
+      );
+
+      // Import internal functions for testing
+      const { getConfig, isInitialized } = require('../../src/tracer');
+
+      // Verify that config was updated with credentials for tracing
+      const config = getConfig();
+      expect(config?._name).toBe('test-hash-no-logging');
+      expect(config?.otlp_endpoint).toBe('http://test-endpoint:4318/v1/traces');
+
+      // Verify that tracing still works
+      expect(isInitialized()).toBe(true);
+
+      // Test that we can create spans
+      const tracedFunction = traceroot.traceFunction(
+        function testFunction() {
+          return 'test-result';
+        },
+        { spanName: 'test-span' }
+      );
+
+      const result = tracedFunction();
+      expect(result).toBe('test-result');
+
+      // Clean up
+      await traceroot.shutdownTracing();
+      await traceroot.shutdownLogger();
+    });
   });
 });
