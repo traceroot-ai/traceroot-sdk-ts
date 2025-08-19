@@ -106,6 +106,15 @@ const config = {
 
 An example is shown in the [traceroot.config.js](./traceroot.config.js) file.
 
+
+### Indicate the Location of the Config File
+
+Sometimes it's quite hard to find the config file in the project root due to webpack or other bundlers. You can set the `TRACEROOT_CONFIG_PATH` environment variable to indicate the location of the config file.
+
+```bash
+export TRACEROOT_CONFIG_PATH=/path/to/your/traceroot.config.ts
+```
+
 ## Usage
 
 Then you can use the `traceroot.traceFunction` to trace your functions:
