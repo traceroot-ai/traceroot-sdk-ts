@@ -1,6 +1,6 @@
 /**
  * Test suite for environment variable support in JavaScript configuration loading
- * 
+ *
  * This test focuses specifically on the tryJavaScriptFallback function's
  * environment variable support, isolated from other config loading mechanisms.
  */
@@ -46,7 +46,7 @@ describe('Environment Variable Configuration Loading', () => {
     process.chdir(testDir);
     // Ensure environment variable is clean at start of each test
     delete process.env.TRACEROOT_CONFIG_PATH;
-    
+
     // Clean up any existing config files from previous tests
     const configFiles = [
       'traceroot.config.ts',
@@ -65,14 +65,14 @@ describe('Environment Variable Configuration Loading', () => {
         delete require.cache[filePath];
       }
     });
-    
+
     // Clear require cache to avoid test interference
     Object.keys(require.cache).forEach(key => {
       if (key.includes('test-configs-envvar') || key.includes('configLoader')) {
         delete require.cache[key];
       }
     });
-    
+
     jest.clearAllMocks();
   });
 
@@ -271,7 +271,7 @@ module.exports = config;
     test('should return null when both environment variable and directory search fail', () => {
       // Set environment variable to non-existent file
       process.env.TRACEROOT_CONFIG_PATH = '/non/existent/path/config.js';
-      
+
       // Don't create any config files in the current directory
 
       const loadedConfig = tryJavaScriptFallback();
@@ -356,11 +356,11 @@ const config = {
       // First, clean up any existing config files in the test directory
       const configFiles = [
         'traceroot.config.js',
-        'traceroot.config.mjs', 
+        'traceroot.config.mjs',
         'traceroot.config.cjs',
         'traceroot.config.ts'
       ];
-      
+
       configFiles.forEach(file => {
         const filePath = join(testDir, file);
         if (existsSync(filePath)) {
@@ -392,7 +392,7 @@ module.exports = {
 
       // Verify the file was created and has the correct content
       expect(existsSync(configPath)).toBe(true);
-      
+
       // Double-check the file content
       const fileContent = require('fs').readFileSync(configPath, 'utf8');
       expect(fileContent).toContain('empty-env-var-test');
@@ -408,7 +408,7 @@ module.exports = {
 
       // Should fall back to directory search and load our config
       expect(loadedConfig).not.toBeNull();
-      
+
       // Use a more specific assertion to help debug
       if (loadedConfig?.service_name !== 'empty-env-var-test') {
         console.log('Expected service_name: empty-env-var-test');
@@ -417,7 +417,7 @@ module.exports = {
         console.log('Config file exists:', existsSync(configPath));
         console.log('Files in test directory:', require('fs').readdirSync(testDir));
       }
-      
+
       expect(loadedConfig?.service_name).toBe('empty-env-var-test');
       expect(loadedConfig?.token).toBe('empty-env-token');
       expect(loadedConfig?.github_owner).toBe('empty-env-org');
