@@ -74,6 +74,7 @@ describe('TraceRoot Logger Credential Expiration', () => {
       service_name: 'test-service',
       local_mode: false, // Not in local mode to test CloudWatch
       enable_log_console_export: true,
+      enable_log_cloud_export: true,
       enable_span_console_export: true,
       github_commit_hash: 'abc123',
       github_owner: 'test-owner',

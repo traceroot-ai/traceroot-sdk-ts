@@ -26,9 +26,12 @@ export interface TraceRootConfig {
   // Environment
   environment?: string;
 
-  // Tracing options
+  // Console export
   enable_span_console_export?: boolean;
   enable_log_console_export?: boolean;
+
+  // Cloud export
+  enable_log_cloud_export?: boolean;
 
   // Local mode
   local_mode?: boolean;
@@ -80,6 +83,7 @@ export class TraceRootConfigImpl implements TraceRootConfig {
   environment: string = 'development';
   enable_span_console_export: boolean = false;
   enable_log_console_export: boolean = false;
+  enable_log_cloud_export: boolean = true;
   local_mode: boolean = false;
   _name?: string;
   _sub_name?: string;
@@ -96,6 +100,8 @@ export class TraceRootConfigImpl implements TraceRootConfig {
     this.environment = config.environment || 'development';
     this.enable_span_console_export = config.enable_span_console_export || false;
     this.enable_log_console_export = config.enable_log_console_export || false;
+    this.enable_log_cloud_export =
+      config.enable_log_cloud_export !== undefined ? config.enable_log_cloud_export : true;
     this.local_mode = config.local_mode || false;
 
     this._name = this.name;
