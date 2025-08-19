@@ -97,26 +97,146 @@ export async function loadTypescriptConfig(
 /**
  * Finds a configuration file in the project root
  * Tries TypeScript first, then falls back to JavaScript alternatives
+ * Uses multiple strategies to handle different environments (including Turbopack)
  */
 export function findTypescriptConfig(): string | null {
-  const currentPath = process.cwd();
+  console.log('[ConfigLoader] Starting config file search...');
 
-  // Try TypeScript first
-  const tsConfigPath = join(currentPath, 'traceroot.config.ts');
-  if (existsSync(tsConfigPath)) {
-    return tsConfigPath;
-  }
+  const configNames = [
+    'traceroot.config.ts',
+    'traceroot.config.js',
+    'traceroot.config.mjs',
+    'traceroot.config.cjs',
+  ];
 
-  // Fall back to JavaScript alternatives
-  const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
+  console.log('[ConfigLoader] Looking for config files:', configNames);
 
-  for (const configName of jsConfigNames) {
-    const configPath = join(currentPath, configName);
-    if (existsSync(configPath)) {
-      return configPath;
+  // Strategy 1: Try current working directory
+  console.log('[ConfigLoader] Strategy 1: Searching in current working directory');
+  try {
+    const currentPath = process.cwd();
+    console.log('[ConfigLoader] Current working directory:', currentPath);
+
+    if (currentPath && !currentPath.includes('ROOT/') && existsSync(currentPath)) {
+      console.log('[ConfigLoader] Current directory exists and is valid');
+      for (const configName of configNames) {
+        const configPath = join(currentPath, configName);
+        console.log('[ConfigLoader] Checking:', configPath);
+        if (existsSync(configPath)) {
+          console.log('[ConfigLoader] ✓ Found config file using Strategy 1:', configPath);
+          return configPath;
+        }
+      }
+      console.log('[ConfigLoader] Strategy 1: No config files found in current directory');
+    } else {
+      console.log('[ConfigLoader] Strategy 1: Current directory is invalid or contains ROOT/');
     }
+  } catch (error) {
+    console.error('[ConfigLoader] Strategy 1 failed - process.cwd() error:', error);
+    // process.cwd() might fail in some environments
+    void error;
   }
 
+  // Strategy 2: Try relative to the module's location
+  console.log('[ConfigLoader] Strategy 2: Searching relative to module location');
+  try {
+    const moduleDir = __dirname;
+    console.log('[ConfigLoader] Module directory:', moduleDir);
+    let searchDir = moduleDir;
+
+    // Walk up the directory tree to find the project root
+    for (let i = 0; i < 10; i++) {
+      // Limit to prevent infinite loops
+      console.log(
+        '[ConfigLoader] Strategy 2 - Searching in directory (level',
+        i + 1,
+        '):',
+        searchDir
+      );
+
+      for (const configName of configNames) {
+        const configPath = join(searchDir, configName);
+        console.log('[ConfigLoader] Checking:', configPath);
+        if (existsSync(configPath)) {
+          console.log('[ConfigLoader] ✓ Found config file using Strategy 2:', configPath);
+          return configPath;
+        }
+      }
+
+      const parentDir = join(searchDir, '..');
+      if (parentDir === searchDir) {
+        console.log('[ConfigLoader] Strategy 2: Reached filesystem root, stopping search');
+        break; // Reached filesystem root
+      }
+      searchDir = parentDir;
+    }
+    console.log('[ConfigLoader] Strategy 2: No config files found after walking up directory tree');
+  } catch (error) {
+    console.error('[ConfigLoader] Strategy 2 failed:', error);
+    void error;
+  }
+
+  // Strategy 3: Try common project locations relative to node_modules
+  console.log('[ConfigLoader] Strategy 3: Searching relative to node_modules');
+  try {
+    const moduleLocation = require.resolve('traceroot-sdk-ts/package.json');
+    console.log('[ConfigLoader] Module location:', moduleLocation);
+    const nodeModulesIndex = moduleLocation.indexOf('node_modules');
+    console.log('[ConfigLoader] node_modules index:', nodeModulesIndex);
+
+    if (nodeModulesIndex !== -1) {
+      const projectRoot = moduleLocation.substring(0, nodeModulesIndex);
+      console.log('[ConfigLoader] Inferred project root:', projectRoot);
+
+      if (existsSync(projectRoot)) {
+        console.log('[ConfigLoader] Project root exists, searching for config files');
+        for (const configName of configNames) {
+          const configPath = join(projectRoot, configName);
+          console.log('[ConfigLoader] Checking:', configPath);
+          if (existsSync(configPath)) {
+            console.log('[ConfigLoader] ✓ Found config file using Strategy 3:', configPath);
+            return configPath;
+          }
+        }
+        console.log('[ConfigLoader] Strategy 3: No config files found in project root');
+      } else {
+        console.log('[ConfigLoader] Strategy 3: Project root does not exist');
+      }
+    } else {
+      console.log('[ConfigLoader] Strategy 3: node_modules not found in module location');
+    }
+  } catch (error) {
+    console.error('[ConfigLoader] Strategy 3 failed - package.json resolution error:', error);
+    // This might fail if package.json can't be resolved
+    void error;
+  }
+
+  // Strategy 4: Try environment variables if available
+  console.log('[ConfigLoader] Strategy 4: Checking environment variables');
+  try {
+    const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
+    console.log('[ConfigLoader] TRACEROOT_CONFIG_PATH environment variable:', envConfigPath);
+
+    if (envConfigPath && existsSync(envConfigPath)) {
+      console.log(
+        '[ConfigLoader] ✓ Found config file using Strategy 4 (environment variable):',
+        envConfigPath
+      );
+      return envConfigPath;
+    } else if (envConfigPath) {
+      console.log(
+        '[ConfigLoader] Strategy 4: Environment variable set but file does not exist:',
+        envConfigPath
+      );
+    } else {
+      console.log('[ConfigLoader] Strategy 4: No TRACEROOT_CONFIG_PATH environment variable set');
+    }
+  } catch (error) {
+    console.error('[ConfigLoader] Strategy 4 failed:', error);
+    void error;
+  }
+
+  console.log('[ConfigLoader] ✗ No config file found using any strategy');
   return null;
 }
 
