@@ -120,7 +120,6 @@ You can enable the cloud export of spans and logs by setting the `enable_span_cl
 
 You can enable the console export of spans and logs by setting the `enable_span_console_export` and `enable_log_console_export` to `true`. Enable them will print out spans or logs in the console.
 
-
 ## Usage
 
 Then you can use the `traceroot.traceFunction` to trace your functions:
