@@ -27,6 +27,7 @@ const mockConfig = {
   environment: 'test',
   token: 'test-token',
   enable_span_console_export: true,
+  enable_span_cloud_export: true,
   enable_log_console_export: true,
   local_mode: false,
   autoInit: true,

@@ -4,6 +4,7 @@ import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
   ConsoleSpanExporter,
+  NoopSpanProcessor,
 } from '@opentelemetry/sdk-trace-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
@@ -80,8 +81,8 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
 
-  // If not in local mode, fetch AWS credentials for tracing (independent of logging configuration)
-  if (!config.local_mode) {
+  // If not in local mode and cloud export is enabled, fetch AWS credentials
+  if (!config.local_mode && config.enable_span_cloud_export) {
     const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
     if (credentials) {
       // Update config with fetched credentials
@@ -95,6 +96,10 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     } else {
       console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
+  } else if (!config.enable_span_cloud_export) {
+    console.log(`[TraceRoot] Span cloud export disabled - skipping AWS credentials fetch`);
+    // If span cloud export is disabled, also disable log cloud export
+    config.enable_log_cloud_export = false;
   } else {
     console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   }
@@ -114,26 +119,34 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     })
   );
 
-  // Create trace exporter
-  const traceExporter = new OTLPTraceExporter({
-    url: config.otlp_endpoint,
-  });
-
-  // Create span processor
-  // Local mode: use SimpleSpanProcessor for immediate export when span ends
-  // This ensures spans are only exported when their function actually completes
-  // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
-  const spanProcessor = config.local_mode
-    ? new SimpleSpanProcessor(traceExporter)
-    : new BatchSpanProcessor(traceExporter, {
-        maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-        exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-        scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-        maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-      });
-
   // Prepare span processors array
-  const spanProcessors = [spanProcessor];
+  const spanProcessors = [];
+
+  // Create main span processor based on cloud export configuration
+  if (config.enable_span_cloud_export) {
+    // Create trace exporter for cloud export
+    const traceExporter = new OTLPTraceExporter({
+      url: config.otlp_endpoint,
+    });
+
+    // Create span processor
+    // Local mode: use SimpleSpanProcessor for immediate export when span ends
+    // This ensures spans are only exported when their function actually completes
+    // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
+    const spanProcessor = config.local_mode
+      ? new SimpleSpanProcessor(traceExporter)
+      : new BatchSpanProcessor(traceExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
+
+    spanProcessors.push(spanProcessor);
+  } else {
+    // Use NoopSpanProcessor when cloud export is disabled
+    spanProcessors.push(new NoopSpanProcessor());
+  }
 
   // If console export is enabled, add console span processor with same type as main processor
   // This will log the spans to the console for debugging purposes etc.
