@@ -348,6 +348,7 @@ describe('Tracer Span Helper Functions', () => {
         github_commit_hash: 'test-commit',
         environment: 'test',
         local_mode: false, // This should trigger AWS credential fetching
+        enable_span_cloud_export: true, // Explicitly enable span cloud export
         token: 'test-token',
       };
 
@@ -358,6 +359,7 @@ describe('Tracer Span Helper Functions', () => {
       expect(fetchAwsCredentialsSync).toHaveBeenCalledWith(
         expect.objectContaining({
           local_mode: false,
+          enable_span_cloud_export: true,
           token: 'test-token',
         })
       );
@@ -395,6 +397,7 @@ describe('Tracer Span Helper Functions', () => {
         github_commit_hash: 'test-commit',
         environment: 'test',
         local_mode: false, // Should trigger AWS credential fetching for tracing
+        enable_span_cloud_export: true, // Explicitly enable span cloud export
         enable_log_cloud_export: false, // Cloud logging disabled - but tracing should still work
         token: 'test-token',
       };
@@ -406,6 +409,7 @@ describe('Tracer Span Helper Functions', () => {
       expect(fetchAwsCredentialsSync).toHaveBeenCalledWith(
         expect.objectContaining({
           local_mode: false,
+          enable_span_cloud_export: true,
           enable_log_cloud_export: false,
           token: 'test-token',
         })

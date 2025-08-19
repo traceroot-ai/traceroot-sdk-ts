@@ -76,6 +76,7 @@ describe('TraceRoot Logger Credential Expiration', () => {
       enable_log_console_export: true,
       enable_log_cloud_export: true,
       enable_span_console_export: true,
+      enable_span_cloud_export: true,
       github_commit_hash: 'abc123',
       github_owner: 'test-owner',
       github_repo_name: 'test-repo',
