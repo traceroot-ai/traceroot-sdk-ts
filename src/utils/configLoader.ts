@@ -100,8 +100,6 @@ export async function loadTypescriptConfig(
  * Uses multiple strategies to handle different environments (including Turbopack)
  */
 export function findTypescriptConfig(): string | null {
-  console.log('[ConfigLoader] Starting config file search...');
-
   const configNames = [
     'traceroot.config.ts',
     'traceroot.config.js',
@@ -109,29 +107,12 @@ export function findTypescriptConfig(): string | null {
     'traceroot.config.cjs',
   ];
 
-  console.log('[ConfigLoader] Looking for config files:', configNames);
-
   // Strategy 1: Try environment variables if available
-  console.log('[ConfigLoader] Strategy 1: Checking environment variables');
   try {
     const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
-    console.log('[ConfigLoader] TRACEROOT_CONFIG_PATH environment variable:', envConfigPath);
 
     if (envConfigPath && envConfigPath.trim() !== '' && existsSync(envConfigPath)) {
-      console.log(
-        '[ConfigLoader] ✓ Found config file using Strategy 1 (environment variable):',
-        envConfigPath
-      );
       return envConfigPath;
-    } else if (envConfigPath && envConfigPath.trim() !== '') {
-      console.log(
-        '[ConfigLoader] Strategy 1: Environment variable set but file does not exist:',
-        envConfigPath
-      );
-    } else {
-      console.log(
-        '[ConfigLoader] Strategy 1: No TRACEROOT_CONFIG_PATH environment variable set or empty'
-      );
     }
   } catch (error) {
     console.error('[ConfigLoader] Strategy 1 failed:', error);
@@ -139,24 +120,16 @@ export function findTypescriptConfig(): string | null {
   }
 
   // Strategy 2: Try current working directory
-  console.log('[ConfigLoader] Strategy 2: Searching in current working directory');
   try {
     const currentPath = process.cwd();
-    console.log('[ConfigLoader] Current working directory:', currentPath);
 
     if (currentPath && !currentPath.includes('ROOT/') && existsSync(currentPath)) {
-      console.log('[ConfigLoader] Current directory exists and is valid');
       for (const configName of configNames) {
         const configPath = join(currentPath, configName);
-        console.log('[ConfigLoader] Checking:', configPath);
         if (existsSync(configPath)) {
-          console.log('[ConfigLoader] ✓ Found config file using Strategy 2:', configPath);
           return configPath;
         }
       }
-      console.log('[ConfigLoader] Strategy 2: No config files found in current directory');
-    } else {
-      console.log('[ConfigLoader] Strategy 2: Current directory is invalid or contains ROOT/');
     }
   } catch (error) {
     console.error('[ConfigLoader] Strategy 2 failed - process.cwd() error:', error);
@@ -164,7 +137,6 @@ export function findTypescriptConfig(): string | null {
     void error;
   }
 
-  console.log('[ConfigLoader] ✗ No config file found using any strategy');
   return null;
 }
 
@@ -293,7 +265,6 @@ export function tryJavaScriptFallback(): TraceRootConfigFile | null {
   try {
     const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
     if (envConfigPath && envConfigPath.trim() !== '' && existsSync(envConfigPath)) {
-      console.log('[ConfigLoader] Found config file from TRACEROOT_CONFIG_PATH:', envConfigPath);
       return loadJavaScriptConfig(envConfigPath);
     }
   } catch (error) {
