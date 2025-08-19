@@ -111,8 +111,35 @@ export function findTypescriptConfig(): string | null {
 
   console.log('[ConfigLoader] Looking for config files:', configNames);
 
-  // Strategy 1: Try current working directory
-  console.log('[ConfigLoader] Strategy 1: Searching in current working directory');
+  // Strategy 1: Try environment variables if available
+  console.log('[ConfigLoader] Strategy 1: Checking environment variables');
+  try {
+    const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
+    console.log('[ConfigLoader] TRACEROOT_CONFIG_PATH environment variable:', envConfigPath);
+
+    if (envConfigPath && envConfigPath.trim() !== '' && existsSync(envConfigPath)) {
+      console.log(
+        '[ConfigLoader] ✓ Found config file using Strategy 1 (environment variable):',
+        envConfigPath
+      );
+      return envConfigPath;
+    } else if (envConfigPath && envConfigPath.trim() !== '') {
+      console.log(
+        '[ConfigLoader] Strategy 1: Environment variable set but file does not exist:',
+        envConfigPath
+      );
+    } else {
+      console.log(
+        '[ConfigLoader] Strategy 1: No TRACEROOT_CONFIG_PATH environment variable set or empty'
+      );
+    }
+  } catch (error) {
+    console.error('[ConfigLoader] Strategy 1 failed:', error);
+    void error;
+  }
+
+  // Strategy 2: Try current working directory
+  console.log('[ConfigLoader] Strategy 2: Searching in current working directory');
   try {
     const currentPath = process.cwd();
     console.log('[ConfigLoader] Current working directory:', currentPath);
@@ -123,116 +150,17 @@ export function findTypescriptConfig(): string | null {
         const configPath = join(currentPath, configName);
         console.log('[ConfigLoader] Checking:', configPath);
         if (existsSync(configPath)) {
-          console.log('[ConfigLoader] ✓ Found config file using Strategy 1:', configPath);
-          return configPath;
-        }
-      }
-      console.log('[ConfigLoader] Strategy 1: No config files found in current directory');
-    } else {
-      console.log('[ConfigLoader] Strategy 1: Current directory is invalid or contains ROOT/');
-    }
-  } catch (error) {
-    console.error('[ConfigLoader] Strategy 1 failed - process.cwd() error:', error);
-    // process.cwd() might fail in some environments
-    void error;
-  }
-
-  // Strategy 2: Try relative to the module's location
-  console.log('[ConfigLoader] Strategy 2: Searching relative to module location');
-  try {
-    const moduleDir = __dirname;
-    console.log('[ConfigLoader] Module directory:', moduleDir);
-    let searchDir = moduleDir;
-
-    // Walk up the directory tree to find the project root
-    for (let i = 0; i < 10; i++) {
-      // Limit to prevent infinite loops
-      console.log(
-        '[ConfigLoader] Strategy 2 - Searching in directory (level',
-        i + 1,
-        '):',
-        searchDir
-      );
-
-      for (const configName of configNames) {
-        const configPath = join(searchDir, configName);
-        console.log('[ConfigLoader] Checking:', configPath);
-        if (existsSync(configPath)) {
           console.log('[ConfigLoader] ✓ Found config file using Strategy 2:', configPath);
           return configPath;
         }
       }
-
-      const parentDir = join(searchDir, '..');
-      if (parentDir === searchDir) {
-        console.log('[ConfigLoader] Strategy 2: Reached filesystem root, stopping search');
-        break; // Reached filesystem root
-      }
-      searchDir = parentDir;
-    }
-    console.log('[ConfigLoader] Strategy 2: No config files found after walking up directory tree');
-  } catch (error) {
-    console.error('[ConfigLoader] Strategy 2 failed:', error);
-    void error;
-  }
-
-  // Strategy 3: Try common project locations relative to node_modules
-  console.log('[ConfigLoader] Strategy 3: Searching relative to node_modules');
-  try {
-    const moduleLocation = require.resolve('traceroot-sdk-ts/package.json');
-    console.log('[ConfigLoader] Module location:', moduleLocation);
-    const nodeModulesIndex = moduleLocation.indexOf('node_modules');
-    console.log('[ConfigLoader] node_modules index:', nodeModulesIndex);
-
-    if (nodeModulesIndex !== -1) {
-      const projectRoot = moduleLocation.substring(0, nodeModulesIndex);
-      console.log('[ConfigLoader] Inferred project root:', projectRoot);
-
-      if (existsSync(projectRoot)) {
-        console.log('[ConfigLoader] Project root exists, searching for config files');
-        for (const configName of configNames) {
-          const configPath = join(projectRoot, configName);
-          console.log('[ConfigLoader] Checking:', configPath);
-          if (existsSync(configPath)) {
-            console.log('[ConfigLoader] ✓ Found config file using Strategy 3:', configPath);
-            return configPath;
-          }
-        }
-        console.log('[ConfigLoader] Strategy 3: No config files found in project root');
-      } else {
-        console.log('[ConfigLoader] Strategy 3: Project root does not exist');
-      }
+      console.log('[ConfigLoader] Strategy 2: No config files found in current directory');
     } else {
-      console.log('[ConfigLoader] Strategy 3: node_modules not found in module location');
+      console.log('[ConfigLoader] Strategy 2: Current directory is invalid or contains ROOT/');
     }
   } catch (error) {
-    console.error('[ConfigLoader] Strategy 3 failed - package.json resolution error:', error);
-    // This might fail if package.json can't be resolved
-    void error;
-  }
-
-  // Strategy 4: Try environment variables if available
-  console.log('[ConfigLoader] Strategy 4: Checking environment variables');
-  try {
-    const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
-    console.log('[ConfigLoader] TRACEROOT_CONFIG_PATH environment variable:', envConfigPath);
-
-    if (envConfigPath && existsSync(envConfigPath)) {
-      console.log(
-        '[ConfigLoader] ✓ Found config file using Strategy 4 (environment variable):',
-        envConfigPath
-      );
-      return envConfigPath;
-    } else if (envConfigPath) {
-      console.log(
-        '[ConfigLoader] Strategy 4: Environment variable set but file does not exist:',
-        envConfigPath
-      );
-    } else {
-      console.log('[ConfigLoader] Strategy 4: No TRACEROOT_CONFIG_PATH environment variable set');
-    }
-  } catch (error) {
-    console.error('[ConfigLoader] Strategy 4 failed:', error);
+    console.error('[ConfigLoader] Strategy 2 failed - process.cwd() error:', error);
+    // process.cwd() might fail in some environments
     void error;
   }
 
@@ -360,51 +288,76 @@ function loadTypeScriptManually(configPath: string): TraceRootConfigFile | null 
 /**
  * Helper function to try loading JavaScript config alternatives
  */
-function tryJavaScriptFallback(): TraceRootConfigFile | null {
+export function tryJavaScriptFallback(): TraceRootConfigFile | null {
+  // Strategy 1: Try environment variable first
+  try {
+    const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
+    if (envConfigPath && envConfigPath.trim() !== '' && existsSync(envConfigPath)) {
+      console.log('[ConfigLoader] Found config file from TRACEROOT_CONFIG_PATH:', envConfigPath);
+      return loadJavaScriptConfig(envConfigPath);
+    }
+  } catch (error) {
+    console.warn(`Failed to load config from TRACEROOT_CONFIG_PATH: ${error}`);
+  }
+
+  // Strategy 2: Try current working directory
   const currentPath = process.cwd();
   const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
 
   for (const configName of jsConfigNames) {
     const configPath = join(currentPath, configName);
     if (existsSync(configPath)) {
-      try {
-        delete require.cache[configPath];
-
-        let configModule: any;
-
-        // Try multiple loading strategies for better compatibility
-        try {
-          // Strategy 1: Direct require with absolute path
-          configModule = require(configPath);
-        } catch (requireError) {
-          void requireError;
-          try {
-            // Strategy 2: Try reading and evaluating the file manually
-            const fs = require('fs');
-            const fileContent = fs.readFileSync(configPath, 'utf8');
-            const Module = require('module');
-            const tempModule = new Module(configPath);
-            tempModule.filename = configPath;
-            tempModule.paths = Module._nodeModulePaths(require('path').dirname(configPath));
-            tempModule._compile(fileContent, configPath);
-            configModule = tempModule.exports;
-          } catch (compileError) {
-            throw compileError;
-          }
-        }
-
-        const config = configModule.default || configModule.config || configModule;
-
-        if (typeof config === 'function') {
-          return config();
-        }
-
-        return config as TraceRootConfigFile;
-      } catch (error) {
-        console.warn(`Failed to load JavaScript config ${configPath}: ${error}`);
-        continue;
+      const result = loadJavaScriptConfig(configPath);
+      if (result) {
+        return result;
       }
     }
   }
   return null;
+}
+
+/**
+ * Helper function to load a JavaScript config file
+ */
+function loadJavaScriptConfig(configPath: string): TraceRootConfigFile | null {
+  try {
+    // Clear cache for both relative and absolute paths
+    const absolutePath = require('path').resolve(configPath);
+    delete require.cache[configPath];
+    delete require.cache[absolutePath];
+
+    let configModule: any;
+
+    // Always use manual file reading to avoid Node.js module cache issues in tests
+    // This ensures we read the latest content from disk
+    try {
+      const fs = require('fs');
+      const fileContent = fs.readFileSync(absolutePath, 'utf8');
+      const Module = require('module');
+      const tempModule = new Module(absolutePath);
+      tempModule.filename = absolutePath;
+      tempModule.paths = Module._nodeModulePaths(require('path').dirname(absolutePath));
+      tempModule._compile(fileContent, absolutePath);
+      configModule = tempModule.exports;
+    } catch (manualError) {
+      void manualError;
+      // Fallback to standard require if manual loading fails
+      try {
+        configModule = require(absolutePath);
+      } catch (requireError) {
+        throw requireError;
+      }
+    }
+
+    const config = configModule.default || configModule.config || configModule;
+
+    if (typeof config === 'function') {
+      return config();
+    }
+
+    return config as TraceRootConfigFile;
+  } catch (error) {
+    console.warn(`Failed to load JavaScript config ${configPath}: ${error}`);
+    return null;
+  }
 }
