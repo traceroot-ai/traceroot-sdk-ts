@@ -345,6 +345,7 @@ const config: Config = {
     });
   });
 
+
   describe('Real-world JavaScript Config', () => {
     test('should load config matching the user example', () => {
       // This matches the actual config structure from the user's example
