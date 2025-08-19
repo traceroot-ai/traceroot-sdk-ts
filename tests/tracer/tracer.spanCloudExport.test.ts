@@ -49,7 +49,7 @@ describe('Span Cloud Export Configuration', () => {
 
       const { getConfig } = require('../../src/tracer');
       const config = getConfig();
-      
+
       // Verify that log cloud export was also disabled
       expect(config?.enable_log_cloud_export).toBe(false);
       expect(config?.enable_span_cloud_export).toBe(false);
@@ -194,7 +194,7 @@ describe('Span Cloud Export Configuration', () => {
 
       const { getConfig } = require('../../src/tracer');
       const config = getConfig();
-      
+
       // Verify that config was updated with credentials
       expect(config?._name).toBe('test-hash-span-enabled');
       expect(config?.otlp_endpoint).toBe('http://test-endpoint:4318/v1/traces');
@@ -235,7 +235,7 @@ describe('Span Cloud Export Configuration', () => {
 
       const { getConfig } = require('../../src/tracer');
       const config = getConfig();
-      
+
       // Verify that span cloud export defaults to true
       expect(config?.enable_span_cloud_export).toBe(true);
     });
@@ -261,7 +261,7 @@ describe('Span Cloud Export Configuration', () => {
 
       const { getConfig } = require('../../src/tracer');
       const config = getConfig();
-      
+
       // Verify that log cloud export was disabled but console export remains
       expect(config?.enable_span_cloud_export).toBe(false);
       expect(config?.enable_log_cloud_export).toBe(false);
