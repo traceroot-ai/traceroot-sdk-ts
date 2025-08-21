@@ -6,7 +6,7 @@ jest.mock('winston', () => {
   const mockLogger = {
     debug: jest.fn(),
     info: jest.fn(),
-    warn: jest.fn(), 
+    warn: jest.fn(),
     error: jest.fn(),
     add: jest.fn(),
     on: jest.fn(),
@@ -72,7 +72,7 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     jest.spyOn(console, 'log').mockImplementation();
 
@@ -84,7 +84,7 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
       enable_span_console_export: true,
       enable_span_cloud_export: true,
       github_commit_hash: 'abc123',
-      github_owner: 'test-owner', 
+      github_owner: 'test-owner',
       github_repo_name: 'test-repo',
       environment: 'test',
       aws_region: 'us-east-1',
@@ -205,11 +205,11 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
 
   test('should demonstrate race condition between credential check and CloudWatch call', async () => {
     // This test demonstrates the race condition scenario
-    
+
     // Set up credentials that are valid but will expire very soon
     const soonToExpireCredentials = {
       aws_access_key_id: 'soon-to-expire-key',
-      aws_secret_access_key: 'soon-to-expire-secret', 
+      aws_secret_access_key: 'soon-to-expire-secret',
       aws_session_token: 'soon-to-expire-token',
       region: 'us-east-1',
       hash: 'soon-to-expire-hash',
@@ -235,7 +235,7 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
 
     // Make multiple rapid logging calls
     // Some might be processed with old credentials, some with new
-    const rapidLoggingPromises = Array.from({ length: 10 }, (_, i) => 
+    const rapidLoggingPromises = Array.from({ length: 10 }, (_, i) =>
       logger.info(`Rapid message ${i}`)
     );
 

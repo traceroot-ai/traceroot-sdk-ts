@@ -79,7 +79,7 @@ jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
     throw new Error('AWS SDK CloudWatch client initialization failed');
   }),
   CreateLogGroupCommand: jest.fn(),
-  CreateLogStreamCommand: jest.fn(), 
+  CreateLogStreamCommand: jest.fn(),
   DescribeLogGroupsCommand: jest.fn(),
   DescribeLogStreamsCommand: jest.fn(),
 }));
@@ -100,7 +100,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -163,7 +163,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     (winston as any).setThrowMode(true); // Make winston throw errors
 
     let logger;
-    
+
     // Logger creation should NOT throw even if winston throws
     expect(() => {
       logger = initializeLogger(mockConfig);
@@ -174,7 +174,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     // All logging operations should NOT throw even with multiple error sources
     const loggingOperations = [
       () => logger.debug('Debug with expired credentials'),
-      () => logger.info('Info with expired credentials'), 
+      () => logger.info('Info with expired credentials'),
       () => logger.warn('Warn with expired credentials'),
       () => logger.error('Error with expired credentials'),
       () => logger.critical('Critical with expired credentials'),
@@ -188,7 +188,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Verify that errors were logged but not thrown
     expect(consoleErrorSpy).toHaveBeenCalled();
-    
+
     // Should see various types of error messages in console
     const errorCalls = consoleErrorSpy.mock.calls.map(call => call.join(' '));
     expect(errorCalls.some(call => call.includes('Failed to refresh AWS credentials'))).toBe(true);
@@ -202,7 +202,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     });
 
     let logger;
-    
+
     // Should create fallback logger instead of throwing
     expect(() => {
       logger = initializeLogger(mockConfig);
@@ -229,7 +229,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
       aws_secret_access_key: 'valid-secret',
       aws_session_token: 'valid-token',
       region: 'us-east-1',
-      hash: 'valid-hash', 
+      hash: 'valid-hash',
       expiration_utc: new Date(Date.now() + 3600000), // 1 hour from now
       otlp_endpoint: 'http://localhost:4318',
     };
@@ -288,7 +288,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     // Set up valid credentials
     const validCredentials = {
       aws_access_key_id: 'valid-key',
-      aws_secret_access_key: 'valid-secret', 
+      aws_secret_access_key: 'valid-secret',
       aws_session_token: 'valid-token',
       region: 'us-east-1',
       hash: 'valid-hash',
@@ -331,7 +331,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
   test('should demonstrate zero error propagation guarantee', async () => {
     // This is the ultimate test: create the worst possible scenario
-    
+
     // Expired credentials
     const expiredCredentials = {
       aws_access_key_id: 'expired',
@@ -359,17 +359,17 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     try {
       // 1. Logger creation
       logger = initializeLogger(mockConfig);
-      
+
       // 2. Intensive logging under adverse conditions
-      const intensiveLogging = Array.from({ length: 50 }, (_, i) => 
+      const intensiveLogging = Array.from({ length: 50 }, (_, i) =>
         logger.info(`Stress test message ${i} under maximum error conditions`)
       );
-      
+
       await Promise.all(intensiveLogging);
 
       // 3. Mixed logging levels
       await logger.debug('Debug under stress');
-      await logger.warn('Warning under stress'); 
+      await logger.warn('Warning under stress');
       await logger.error('Error under stress');
       await logger.critical('Critical under stress');
 
@@ -383,10 +383,10 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Verify that problems were logged (not thrown)
     expect(consoleErrorSpy).toHaveBeenCalled();
-    
+
     // Should see evidence of error handling, not error throwing
     const allErrorMessages = consoleErrorSpy.mock.calls.map(call => call.join(' '));
-    const hasCredentialError = allErrorMessages.some(msg => 
+    const hasCredentialError = allErrorMessages.some(msg =>
       msg.includes('Failed to refresh AWS credentials')
     );
     const hasWinstonError = allErrorMessages.some(msg =>

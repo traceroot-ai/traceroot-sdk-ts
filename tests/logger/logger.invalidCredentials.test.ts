@@ -82,7 +82,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
       local_mode: false,
       enable_log_console_export: true,
       enable_log_cloud_export: true,
-      enable_span_console_export: true, 
+      enable_span_console_export: true,
       enable_span_cloud_export: true,
       github_commit_hash: 'abc123',
       github_owner: 'test-owner',
@@ -121,7 +121,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     // Set up expired credentials
     const expiredCredentials = {
       aws_access_key_id: 'expired-access-key',
-      aws_secret_access_key: 'expired-secret-key', 
+      aws_secret_access_key: 'expired-secret-key',
       aws_session_token: 'expired-session-token',
       region: 'us-east-1',
       hash: 'expired-hash',
@@ -164,7 +164,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
   test('should NOT throw errors when AWS credential refresh returns invalid response', async () => {
     // Set up expired credentials
     const expiredCredentials = {
-      aws_access_key_id: 'expired-access-key', 
+      aws_access_key_id: 'expired-access-key',
       aws_secret_access_key: 'expired-secret-key',
       aws_session_token: 'expired-session-token',
       region: 'us-east-1',
@@ -245,14 +245,14 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     // Multiple logging operations should all succeed without throwing
     const loggingPromises = [
       logger.debug('Debug message 1'),
-      logger.info('Info message 1'),  
+      logger.info('Info message 1'),
       logger.warn('Warn message 1'),
       logger.error('Error message 1'),
       logger.critical('Critical message 1'),
       logger.debug('Debug message 2'),
       logger.info('Info message 2'),
       logger.warn('Warn message 2'),
-      logger.error('Error message 2'), 
+      logger.error('Error message 2'),
       logger.critical('Critical message 2'),
     ];
 
@@ -286,7 +286,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     }
 
     // The test expects NO errors to be thrown
-    // If TraceRoot throws an error, threwError will be true and the test will fail  
+    // If TraceRoot throws an error, threwError will be true and the test will fail
     expect(threwError).toBe(false);
 
     // Note: The console.log message about missing token would come from tracer initialization,
