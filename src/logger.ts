@@ -840,10 +840,13 @@ export class TraceRootLogger {
 
   /**
    * Process log arguments to support Pino-style structured logging
-   * Supports only these clean patterns:
-   * - logger.info('message')
-   * - logger.info({ metadata }, 'message')
-   * - logger.info({ metadata })
+   * Supported patterns:
+   * - logger.info('message') - simple string message
+   * - logger.info('message', { obj }) - string first, then objects merged
+   * - logger.info({ metadata }, 'message') - object first, then message
+   * - logger.info({ obj1 }, { obj2 }, 'message') - multiple objects merged, then message
+   * - logger.info({ metadata }) - object only, uses default message
+   * - logger.info({ obj1 }, { obj2 }) - multiple objects merged, uses default message
    */
   private processLogArgs(
     messageOrObj: string | any,
@@ -851,30 +854,41 @@ export class TraceRootLogger {
   ): { message: string; metadata: any } {
     let message: string;
     let metadata: any = {};
+    const objects: any[] = [];
+    let foundMessage: string | null = null;
 
-    // If first argument is a string, treat it as the message
+    // Collect the first argument
     if (typeof messageOrObj === 'string') {
-      message = messageOrObj;
-      // No additional processing for string-first pattern
+      foundMessage = messageOrObj;
     } else if (
       typeof messageOrObj === 'object' &&
       messageOrObj !== null &&
       !Array.isArray(messageOrObj)
     ) {
-      // First argument is an object (metadata)
-      metadata = { ...messageOrObj };
-
-      // Check if second argument is a string message
-      if (args.length === 1 && typeof args[0] === 'string') {
-        message = args[0];
-      } else {
-        // Object only, use default message
-        message = 'Log entry';
-      }
+      objects.push(messageOrObj);
     } else {
       // Fallback for other types (arrays, primitives, etc.)
-      message = String(messageOrObj);
+      foundMessage = String(messageOrObj);
     }
+
+    // Process remaining arguments
+    for (const arg of args) {
+      if (typeof arg === 'string' && foundMessage === null) {
+        // First string we encounter becomes the message
+        foundMessage = arg;
+      } else if (typeof arg === 'object' && arg !== null && !Array.isArray(arg)) {
+        // Collect objects for merging
+        objects.push(arg);
+      }
+    }
+
+    // Merge all collected objects
+    if (objects.length > 0) {
+      metadata = objects.reduce((merged, obj) => ({ ...merged, ...obj }), {});
+    }
+
+    // Set the message
+    message = foundMessage || 'Log entry';
 
     return { message, metadata };
   }
