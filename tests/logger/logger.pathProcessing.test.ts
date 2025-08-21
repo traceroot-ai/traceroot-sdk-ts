@@ -20,7 +20,7 @@ describe('Logger Path Processing', () => {
 
     // Setup basic path mocks
     mockedPath.join.mockImplementation((...args) => args.join('/'));
-    mockedPath.dirname.mockImplementation((p) => {
+    mockedPath.dirname.mockImplementation(p => {
       const parts = p.split('/');
       parts.pop();
       return parts.join('/') || '/';
@@ -32,9 +32,11 @@ describe('Logger Path Processing', () => {
 
       // Find common base
       let commonLength = 0;
-      while (commonLength < fromParts.length &&
-             commonLength < toParts.length &&
-             fromParts[commonLength] === toParts[commonLength]) {
+      while (
+        commonLength < fromParts.length &&
+        commonLength < toParts.length &&
+        fromParts[commonLength] === toParts[commonLength]
+      ) {
         commonLength++;
       }
 
@@ -118,7 +120,12 @@ describe('Logger Path Processing', () => {
       }
 
       // Function to recursively search for the file
-      function searchForFile(dir: string, targetFile: string, maxDepth = 3, currentDepth = 0): string | null {
+      function searchForFile(
+        dir: string,
+        targetFile: string,
+        maxDepth = 3,
+        currentDepth = 0
+      ): string | null {
         if (currentDepth > maxDepth) return null;
 
         try {
@@ -150,7 +157,6 @@ describe('Logger Path Processing', () => {
       }
 
       return searchForFile(gitRoot, relativePath);
-
     } catch (error) {
       return null;
     }
@@ -160,7 +166,17 @@ describe('Logger Path Processing', () => {
     const pathParts = filepath.split('/');
 
     // Look for common project structure indicators
-    const projectIndicators = ['src', 'lib', 'app', 'examples', 'test', 'tests', 'dist', 'pages', 'components'];
+    const projectIndicators = [
+      'src',
+      'lib',
+      'app',
+      'examples',
+      'test',
+      'tests',
+      'dist',
+      'pages',
+      'components',
+    ];
     for (let i = 0; i < pathParts.length; i++) {
       const part = pathParts[i];
       if (projectIndicators.includes(part)) {
@@ -177,12 +193,15 @@ describe('Logger Path Processing', () => {
   describe('webpack-internal path processing', () => {
     beforeEach(() => {
       // Mock file system structure
-      mockedFs.existsSync.mockImplementation((filePath) => {
+      mockedFs.existsSync.mockImplementation(filePath => {
         const pathStr = filePath.toString();
         if (pathStr.includes('.git')) {
           return pathStr === '/Users/test/code/traceroot-sdk-ts/.git';
         }
-        if (pathStr === '/Users/test/code/traceroot-sdk-ts/examples/multi_code_agent/ui/src/app/api/code/route.ts') {
+        if (
+          pathStr ===
+          '/Users/test/code/traceroot-sdk-ts/examples/multi_code_agent/ui/src/app/api/code/route.ts'
+        ) {
           return true;
         }
         if (pathStr === '/Users/test/code/traceroot-sdk-ts/src/logger.ts') {
@@ -191,7 +210,7 @@ describe('Logger Path Processing', () => {
         return false;
       });
 
-      mockedFs.readdirSync.mockImplementation((dirPath) => {
+      mockedFs.readdirSync.mockImplementation(dirPath => {
         const pathStr = dirPath.toString();
         if (pathStr === '/Users/test/code/traceroot-sdk-ts') {
           return ['src', 'examples', '.git', 'node_modules'] as any;
@@ -211,11 +230,11 @@ describe('Logger Path Processing', () => {
         return [] as any;
       });
 
-      mockedFs.statSync.mockImplementation((filePath) => {
+      mockedFs.statSync.mockImplementation(filePath => {
         const pathStr = filePath.toString();
-        return ({
-          isDirectory: () => !pathStr.includes('.ts') && !pathStr.includes('.js')
-        } as any);
+        return {
+          isDirectory: () => !pathStr.includes('.ts') && !pathStr.includes('.js'),
+        } as any;
       });
     });
 
@@ -357,16 +376,14 @@ describe('Logger Path Processing', () => {
 
   describe('file system search', () => {
     test('should find git root directory', () => {
-      mockedFs.existsSync.mockImplementation((filePath) => {
+      mockedFs.existsSync.mockImplementation(filePath => {
         return filePath.toString().includes('.git');
       });
 
       const result = processPathFormat('webpack-internal:///src/test.ts');
 
       // Should have called existsSync to look for .git
-      expect(mockedFs.existsSync).toHaveBeenCalledWith(
-        expect.stringContaining('.git')
-      );
+      expect(mockedFs.existsSync).toHaveBeenCalledWith(expect.stringContaining('.git'));
     });
 
     test('should fallback when git root not found', () => {
@@ -390,7 +407,7 @@ describe('Logger Path Processing', () => {
 
     test('should demonstrate file resolution capability', () => {
       // Mock a scenario where the file is found in a nested location
-      mockedFs.existsSync.mockImplementation((filePath) => {
+      mockedFs.existsSync.mockImplementation(filePath => {
         const pathStr = filePath.toString();
         if (pathStr.includes('.git')) {
           return pathStr === '/Users/test/code/traceroot-sdk-ts/.git';
@@ -402,7 +419,7 @@ describe('Logger Path Processing', () => {
         return false;
       });
 
-      mockedFs.readdirSync.mockImplementation((dirPath) => {
+      mockedFs.readdirSync.mockImplementation(dirPath => {
         const pathStr = dirPath.toString();
         if (pathStr === '/Users/test/code/traceroot-sdk-ts') {
           return ['examples', '.git'] as any;

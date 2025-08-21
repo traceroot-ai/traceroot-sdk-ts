@@ -52,7 +52,7 @@ describe('Environment Variable Configuration Loading', () => {
       'traceroot.config.ts',
       'traceroot.config.js',
       'traceroot.config.mjs',
-      'traceroot.config.cjs'
+      'traceroot.config.cjs',
     ];
 
     configFiles.forEach(file => {
@@ -82,7 +82,7 @@ describe('Environment Variable Configuration Loading', () => {
       'traceroot.config.ts',
       'traceroot.config.js',
       'traceroot.config.mjs',
-      'traceroot.config.cjs'
+      'traceroot.config.cjs',
     ];
 
     configFiles.forEach(file => {
@@ -358,7 +358,7 @@ const config = {
         'traceroot.config.js',
         'traceroot.config.mjs',
         'traceroot.config.cjs',
-        'traceroot.config.ts'
+        'traceroot.config.ts',
       ];
 
       configFiles.forEach(file => {

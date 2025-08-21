@@ -293,11 +293,9 @@ describe('Span Cloud Export Configuration', () => {
       expect(isInitialized()).toBe(true);
 
       // Test that tracing still works
-      const tracedFunction = traceroot.traceFunction(
-        function testFunction() {
-          return 'works-without-credentials';
-        }
-      );
+      const tracedFunction = traceroot.traceFunction(function testFunction() {
+        return 'works-without-credentials';
+      });
 
       const result = tracedFunction();
       expect(result).toBe('works-without-credentials');

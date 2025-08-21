@@ -151,7 +151,9 @@ describe('Cloud Export Logging', () => {
     expect(cloudWatchTransports).toHaveLength(0);
 
     // Test logging - should work for console but not attempt cloud logging
-    await expect(logger.info('Test message with console enabled and cloud disabled')).resolves.not.toThrow();
+    await expect(
+      logger.info('Test message with console enabled and cloud disabled')
+    ).resolves.not.toThrow();
   });
 
   test('should default enable_log_cloud_export to true when not specified', () => {

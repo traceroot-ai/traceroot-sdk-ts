@@ -152,7 +152,12 @@ describe('TraceRoot Configuration Initialization', () => {
     });
 
     test('should identify missing required fields', () => {
-      const requiredFields = ['service_name', 'github_owner', 'github_repo_name', 'github_commit_hash'];
+      const requiredFields = [
+        'service_name',
+        'github_owner',
+        'github_repo_name',
+        'github_commit_hash',
+      ];
 
       // Test each required field
       requiredFields.forEach(field => {
