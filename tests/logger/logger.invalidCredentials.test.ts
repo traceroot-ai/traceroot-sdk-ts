@@ -15,7 +15,7 @@ jest.mock('winston', () => {
     transports: [],
   };
 
-  const formatMock: any = jest.fn((fn) => {
+  const formatMock: any = jest.fn(fn => {
     return (info: any) => {
       if (info && typeof info === 'object') {
         return fn(info);
@@ -216,7 +216,9 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
 
     // Logging should NOT throw errors even when CloudWatch transport might fail
     // The main point is that authentication errors are handled gracefully
-    await expect(logger.info('Test message that might cause CloudWatch auth error')).resolves.not.toThrow();
+    await expect(
+      logger.info('Test message that might cause CloudWatch auth error')
+    ).resolves.not.toThrow();
 
     // This test verifies that the logger continues to work even if CloudWatch
     // encounters authentication issues. The actual CloudWatch error handling

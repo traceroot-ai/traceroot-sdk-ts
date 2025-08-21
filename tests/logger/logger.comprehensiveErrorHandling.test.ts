@@ -1,4 +1,4 @@
-import { initializeLogger } from '../../src/logger';
+import { initializeLogger, TraceRootLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -23,7 +23,7 @@ jest.mock('winston', () => {
     transports: [],
   });
 
-  const formatMock: any = jest.fn((fn) => {
+  const formatMock: any = jest.fn(fn => {
     return (info: any) => {
       if (info && typeof info === 'object') {
         return fn(info);
@@ -162,7 +162,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     const winston = require('winston');
     (winston as any).setThrowMode(true); // Make winston throw errors
 
-    let logger;
+    let logger!: TraceRootLogger;
 
     // Logger creation should NOT throw even if winston throws
     expect(() => {
@@ -201,7 +201,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
       throw new Error('Winston createLogger failed - out of memory');
     });
 
-    let logger;
+    let logger!: TraceRootLogger;
 
     // Should create fallback logger instead of throwing
     expect(() => {
@@ -238,7 +238,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // winston-cloudwatch is already mocked to sometimes throw in beforeEach
 
-    let logger;
+    let logger!: TraceRootLogger;
 
     // Logger creation should not throw even if CloudWatch transport creation fails
     expect(() => {
@@ -263,7 +263,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
       throw new Error('Console transport creation failed - permission denied');
     });
 
-    let logger;
+    let logger!: TraceRootLogger;
 
     // Should handle console logger creation failure gracefully
     expect(() => {
@@ -353,7 +353,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // CloudWatch always failing (already mocked in beforeEach)
 
-    let logger;
+    let logger!: TraceRootLogger;
     let threwAnyError = false;
 
     try {
@@ -372,7 +372,6 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
       await logger.warn('Warning under stress');
       await logger.error('Error under stress');
       await logger.critical('Critical under stress');
-
     } catch (error) {
       threwAnyError = true;
       console.log('Unexpected error caught:', error);
@@ -389,8 +388,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     const hasCredentialError = allErrorMessages.some(msg =>
       msg.includes('Failed to refresh AWS credentials')
     );
-    const hasWinstonError = allErrorMessages.some(msg =>
-      msg.includes('Logger') && msg.includes('error')
+    const hasWinstonError = allErrorMessages.some(
+      msg => msg.includes('Logger') && msg.includes('error')
     );
 
     // We should see logged errors but never thrown errors

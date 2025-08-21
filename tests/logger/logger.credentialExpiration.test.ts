@@ -12,7 +12,7 @@ jest.mock('winston', () => {
     on: jest.fn(),
   };
 
-  const formatMock: any = jest.fn((fn) => {
+  const formatMock: any = jest.fn(fn => {
     return (info: any) => {
       if (info && typeof info === 'object') {
         return fn(info);

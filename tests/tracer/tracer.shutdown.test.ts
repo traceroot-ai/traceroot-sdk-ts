@@ -29,11 +29,14 @@ describe('Tracer Shutdown and Flush', () => {
   });
 
   describe('forceFlushTracer', () => {
-    test('should work synchronously (without await)', (done) => {
+    test('should work synchronously (without await)', done => {
       // Create a traced function
-      const testFunction = traceroot.traceFunction(function testSync() {
-        return 'sync result';
-      }, { spanName: 'test-sync-span' });
+      const testFunction = traceroot.traceFunction(
+        function testSync() {
+          return 'sync result';
+        },
+        { spanName: 'test-sync-span' }
+      );
 
       // Execute traced function
       const result = testFunction();
@@ -51,9 +54,12 @@ describe('Tracer Shutdown and Flush', () => {
 
     test('should work asynchronously (with await)', async () => {
       // Create a traced function
-      const testFunction = traceroot.traceFunction(function testAsync() {
-        return 'async result';
-      }, { spanName: 'test-async-span' });
+      const testFunction = traceroot.traceFunction(
+        function testAsync() {
+          return 'async result';
+        },
+        { spanName: 'test-async-span' }
+      );
 
       // Execute traced function
       const result = testFunction();
@@ -82,11 +88,14 @@ describe('Tracer Shutdown and Flush', () => {
   });
 
   describe('shutdownTracing', () => {
-    test('should work synchronously (without await)', (done) => {
+    test('should work synchronously (without await)', done => {
       // Create and execute a traced function
-      const testFunction = traceroot.traceFunction(function testShutdown() {
-        return 'shutdown test';
-      }, { spanName: 'shutdown-span' });
+      const testFunction = traceroot.traceFunction(
+        function testShutdown() {
+          return 'shutdown test';
+        },
+        { spanName: 'shutdown-span' }
+      );
 
       testFunction();
 
@@ -102,9 +111,12 @@ describe('Tracer Shutdown and Flush', () => {
 
     test('should work asynchronously (with await)', async () => {
       // Create and execute a traced function
-      const testFunction = traceroot.traceFunction(function testAsyncShutdown() {
-        return 'async shutdown test';
-      }, { spanName: 'async-shutdown-span' });
+      const testFunction = traceroot.traceFunction(
+        function testAsyncShutdown() {
+          return 'async shutdown test';
+        },
+        { spanName: 'async-shutdown-span' }
+      );
 
       const result = testFunction();
       expect(result).toBe('async shutdown test');
@@ -148,7 +160,7 @@ describe('Tracer Shutdown and Flush', () => {
   });
 
   describe('Combined usage', () => {
-    test('should work with flush followed by shutdown (sync)', (done) => {
+    test('should work with flush followed by shutdown (sync)', done => {
       const testFn = traceroot.traceFunction(() => 'combined test', { spanName: 'combined-span' });
 
       testFn();
@@ -163,7 +175,9 @@ describe('Tracer Shutdown and Flush', () => {
     });
 
     test('should work with flush followed by shutdown (async)', async () => {
-      const testFn = traceroot.traceFunction(() => 'async combined test', { spanName: 'async-combined-span' });
+      const testFn = traceroot.traceFunction(() => 'async combined test', {
+        spanName: 'async-combined-span',
+      });
 
       testFn();
 

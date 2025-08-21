@@ -12,7 +12,7 @@ jest.mock('winston', () => {
     on: jest.fn(),
   };
 
-  const formatMock: any = jest.fn((fn) => {
+  const formatMock: any = jest.fn(fn => {
     return (info: any) => {
       if (info && typeof info === 'object') {
         return fn(info);
@@ -130,7 +130,7 @@ describe('TraceRoot Logger Structured Logging', () => {
         'Critical message',
         expect.objectContaining({
           level: 'critical',
-          stack_trace: expect.any(String)
+          stack_trace: expect.any(String),
         })
       );
     });
@@ -290,7 +290,7 @@ describe('TraceRoot Logger Structured Logging', () => {
         'Just a message',
         expect.objectContaining({
           stack_trace: expect.any(String),
-        })
+        }),
       ]);
 
       expect(callsWithStackTrace[1]).toEqual([
@@ -298,7 +298,7 @@ describe('TraceRoot Logger Structured Logging', () => {
         expect.objectContaining({
           justData: 'value',
           stack_trace: expect.any(String),
-        })
+        }),
       ]);
     });
   });

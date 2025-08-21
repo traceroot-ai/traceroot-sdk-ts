@@ -30,7 +30,7 @@ describe('Logger Flush and Shutdown', () => {
   });
 
   describe('flushLogger', () => {
-    test('should work synchronously (without await)', (done) => {
+    test('should work synchronously (without await)', done => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
 
@@ -93,7 +93,7 @@ describe('Logger Flush and Shutdown', () => {
   });
 
   describe('shutdownLogger', () => {
-    test('should work synchronously (without await)', (done) => {
+    test('should work synchronously (without await)', done => {
       // Get logger and create some log entries
       const logger = traceroot.get_logger();
 
@@ -140,7 +140,7 @@ describe('Logger Flush and Shutdown', () => {
   });
 
   describe('Combined usage', () => {
-    test('should work with flush followed by shutdown (sync)', (done) => {
+    test('should work with flush followed by shutdown (sync)', done => {
       const logger = traceroot.get_logger();
 
       logger.info('Combined test log message');
@@ -170,11 +170,14 @@ describe('Logger Flush and Shutdown', () => {
 
     test('should handle traced function with logging', async () => {
       // Create a traced function that also logs
-      const tracedFunction = traceroot.traceFunction(function testWithLogging() {
-        const logger = traceroot.get_logger();
-        logger.info('Log message from traced function');
-        return 'traced result';
-      }, { spanName: 'traced-with-logging' });
+      const tracedFunction = traceroot.traceFunction(
+        function testWithLogging() {
+          const logger = traceroot.get_logger();
+          logger.info('Log message from traced function');
+          return 'traced result';
+        },
+        { spanName: 'traced-with-logging' }
+      );
 
       const result = tracedFunction();
       expect(result).toBe('traced result');

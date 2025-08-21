@@ -7,10 +7,7 @@
 
 import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import {
-  findTypescriptConfig,
-  loadTypescriptConfigSync
-} from '../../src/utils/configLoader';
+import { findTypescriptConfig, loadTypescriptConfigSync } from '../../src/utils/configLoader';
 
 // Mock modules to avoid side effects
 jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
@@ -49,7 +46,7 @@ describe('JavaScript Configuration Loading', () => {
       'traceroot.config.ts',
       'traceroot.config.js',
       'traceroot.config.mjs',
-      'traceroot.config.cjs'
+      'traceroot.config.cjs',
     ];
 
     configFiles.forEach(file => {
@@ -344,7 +341,6 @@ const config: Config = {
       expect(loadedConfig).toBeNull();
     });
   });
-
 
   describe('Real-world JavaScript Config', () => {
     test('should load config matching the user example', () => {

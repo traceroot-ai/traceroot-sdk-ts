@@ -13,7 +13,7 @@ jest.mock('winston', () => {
     transports: [],
   };
 
-  const formatMock: any = jest.fn((fn) => {
+  const formatMock: any = jest.fn(fn => {
     return (info: any) => {
       if (info && typeof info === 'object') {
         return fn(info);
@@ -115,11 +115,13 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
 
     // Mock CloudWatch transport to simulate authentication error after credentials expire
     let errorCallback: ((error: any) => void) | null = null;
-    mockCloudWatchTransport.on.mockImplementation((event: string, callback: (error: any) => void) => {
-      if (event === 'error') {
-        errorCallback = callback;
+    mockCloudWatchTransport.on.mockImplementation(
+      (event: string, callback: (error: any) => void) => {
+        if (event === 'error') {
+          errorCallback = callback;
+        }
       }
-    });
+    );
 
     logger = initializeLogger(mockConfig);
 

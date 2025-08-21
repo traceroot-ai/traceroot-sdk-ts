@@ -100,9 +100,12 @@ describe('Tracer Span Helper Functions', () => {
     test('should finalize span successfully with return value tracing enabled', () => {
       const testValue = { key: 'value', number: 42 };
 
-      const testFn = traceroot.traceFunction(function testFunction() {
-        return testValue;
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        function testFunction() {
+          return testValue;
+        },
+        { traceReturnValue: true }
+      );
 
       const result = testFn();
       expect(result).toEqual(testValue);
@@ -111,9 +114,12 @@ describe('Tracer Span Helper Functions', () => {
     test('should finalize span successfully with return value tracing disabled', () => {
       const testValue = 'simple return';
 
-      const testFn = traceroot.traceFunction(function testFunction() {
-        return testValue;
-      }, { traceReturnValue: false });
+      const testFn = traceroot.traceFunction(
+        function testFunction() {
+          return testValue;
+        },
+        { traceReturnValue: false }
+      );
 
       const result = testFn();
       expect(result).toBe(testValue);
@@ -126,9 +132,12 @@ describe('Tracer Span Helper Functions', () => {
         boolean: true,
       };
 
-      const testFn = traceroot.traceFunction(function testFunction() {
-        return complexValue;
-      }, { traceReturnValue: true, flattenAttributes: true });
+      const testFn = traceroot.traceFunction(
+        function testFunction() {
+          return complexValue;
+        },
+        { traceReturnValue: true, flattenAttributes: true }
+      );
 
       const result = testFn();
       expect(result).toEqual(complexValue);
@@ -137,10 +146,13 @@ describe('Tracer Span Helper Functions', () => {
     test('should handle async function success path', async () => {
       const testValue = 'async result';
 
-      const testFn = traceroot.traceFunction(async function testAsyncFunction() {
-        await new Promise(resolve => setTimeout(resolve, 10));
-        return testValue;
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        async function testAsyncFunction() {
+          await new Promise(resolve => setTimeout(resolve, 10));
+          return testValue;
+        },
+        { traceReturnValue: true }
+      );
 
       const result = await testFn();
       expect(result).toBe(testValue);
@@ -199,14 +211,20 @@ describe('Tracer Span Helper Functions', () => {
 
   describe('Integration Tests', () => {
     test('should handle mixed sync and async operations', async () => {
-      const syncFn = traceroot.traceFunction(function syncFunction(value: string) {
-        return `sync-${value}`;
-      }, { traceReturnValue: true });
+      const syncFn = traceroot.traceFunction(
+        function syncFunction(value: string) {
+          return `sync-${value}`;
+        },
+        { traceReturnValue: true }
+      );
 
-      const asyncFn = traceroot.traceFunction(async function asyncFunction(value: string) {
-        await new Promise(resolve => setTimeout(resolve, 5));
-        return `async-${value}`;
-      }, { traceReturnValue: true });
+      const asyncFn = traceroot.traceFunction(
+        async function asyncFunction(value: string) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          return `async-${value}`;
+        },
+        { traceReturnValue: true }
+      );
 
       const syncResult = syncFn('test');
       const asyncResult = await asyncFn('test');
@@ -216,35 +234,47 @@ describe('Tracer Span Helper Functions', () => {
     });
 
     test('should handle nested traced functions', async () => {
-      const innerFn = traceroot.traceFunction(function innerFunction(x: number) {
-        return x * 2;
-      }, { spanName: 'inner', traceReturnValue: true });
+      const innerFn = traceroot.traceFunction(
+        function innerFunction(x: number) {
+          return x * 2;
+        },
+        { spanName: 'inner', traceReturnValue: true }
+      );
 
-      const outerFn = traceroot.traceFunction(async function outerFunction(value: number) {
-        const logger = traceroot.get_logger();
-        logger.info('Starting outer function');
+      const outerFn = traceroot.traceFunction(
+        async function outerFunction(value: number) {
+          const logger = traceroot.get_logger();
+          logger.info('Starting outer function');
 
-        const doubled = innerFn(value);
-        logger.info(`Doubled value: ${doubled}`);
+          const doubled = innerFn(value);
+          logger.info(`Doubled value: ${doubled}`);
 
-        await new Promise(resolve => setTimeout(resolve, 5));
-        return doubled + 10;
-      }, { spanName: 'outer', traceReturnValue: true });
+          await new Promise(resolve => setTimeout(resolve, 5));
+          return doubled + 10;
+        },
+        { spanName: 'outer', traceReturnValue: true }
+      );
 
       const result = await outerFn(5);
       expect(result).toBe(20); // (5 * 2) + 10
     });
 
     test('should handle errors in nested traced functions', () => {
-      const innerFn = traceroot.traceFunction(function innerFunction() {
-        throw new Error('Inner function error');
-      }, { spanName: 'inner-error' });
+      const innerFn = traceroot.traceFunction(
+        function innerFunction() {
+          throw new Error('Inner function error');
+        },
+        { spanName: 'inner-error' }
+      );
 
-      const outerFn = traceroot.traceFunction(function outerFunction() {
-        const logger = traceroot.get_logger();
-        logger.info('Before calling inner function');
-        return innerFn();
-      }, { spanName: 'outer-error' });
+      const outerFn = traceroot.traceFunction(
+        function outerFunction() {
+          const logger = traceroot.get_logger();
+          logger.info('Before calling inner function');
+          return innerFn();
+        },
+        { spanName: 'outer-error' }
+      );
 
       expect(() => outerFn()).toThrow('Inner function error');
     });
@@ -252,36 +282,48 @@ describe('Tracer Span Helper Functions', () => {
 
   describe('Edge Cases', () => {
     test('should handle functions that return undefined', () => {
-      const testFn = traceroot.traceFunction(function testFunction() {
-        // Implicit return undefined
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        function testFunction() {
+          // Implicit return undefined
+        },
+        { traceReturnValue: true }
+      );
 
       const result = testFn();
       expect(result).toBeUndefined();
     });
 
     test('should handle functions that return null', () => {
-      const testFn = traceroot.traceFunction(function testFunction() {
-        return null;
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        function testFunction() {
+          return null;
+        },
+        { traceReturnValue: true }
+      );
 
       const result = testFn();
       expect(result).toBeNull();
     });
 
     test('should handle async functions that return promises directly', async () => {
-      const testFn = traceroot.traceFunction(async function testFunction() {
-        return Promise.resolve('direct promise');
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        async function testFunction() {
+          return Promise.resolve('direct promise');
+        },
+        { traceReturnValue: true }
+      );
 
       const result = await testFn();
       expect(result).toBe('direct promise');
     });
 
     test('should handle functions with no name (anonymous)', () => {
-      const testFn = traceroot.traceFunction(() => {
-        return 'anonymous result';
-      }, { traceReturnValue: true });
+      const testFn = traceroot.traceFunction(
+        () => {
+          return 'anonymous result';
+        },
+        { traceReturnValue: true }
+      );
 
       const result = testFn();
       expect(result).toBe('anonymous result');
