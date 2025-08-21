@@ -7,6 +7,7 @@ async function main() {
     async function makeRequest(requestId: string, userId: string): Promise<string> {
       // This will store the userId as a metadata attribute in the span so you can search for it in the TraceRoot UI
       logger.info({ userId }, `Making request: ${requestId}`);
+      logger.debug('Pure debug message');
       await makeAnotherRequest(requestId, userId);
       // Simulate some async work
       await new Promise(resolve => setTimeout(resolve, 1000));

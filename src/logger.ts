@@ -840,13 +840,13 @@ export class TraceRootLogger {
 
   /**
    * Process log arguments to support Pino-style structured logging
-   * Supports these patterns:
-   * - logger.info('message')
-   * - logger.info({ metadata }, 'message')
-   * - logger.info({ metadata })
-   * - logger.info({ obj1 }, 'message', { obj2 }) - merges obj1 and obj2
-   * - logger.info({ obj1 }, { obj2 }, 'message') - merges obj1 and obj2
-   * - logger.info({ obj1 }, { obj2 }) - merges obj1 and obj2, uses default message
+   * Supported patterns:
+   * - logger.info('message') - simple string message
+   * - logger.info('message', { obj }) - string first, then objects merged
+   * - logger.info({ metadata }, 'message') - object first, then message
+   * - logger.info({ obj1 }, { obj2 }, 'message') - multiple objects merged, then message
+   * - logger.info({ metadata }) - object only, uses default message
+   * - logger.info({ obj1 }, { obj2 }) - multiple objects merged, uses default message
    */
   private processLogArgs(
     messageOrObj: string | any,

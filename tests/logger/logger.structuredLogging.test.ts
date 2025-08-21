@@ -182,22 +182,30 @@ describe('TraceRoot Logger Structured Logging', () => {
       );
     });
 
-    test('should not support complex multi-argument patterns', () => {
-      // These patterns are no longer supported - they fall back to string conversion
-      logger.info('Message', { shouldNotBeMerged: true });
+    test('should support string-first with object patterns', () => {
+      // This pattern is now supported - string first, then objects are merged
+      logger.info('Message', { shouldBeMerged: true });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Message',
         expect.objectContaining({
+          shouldBeMerged: true,
           stack_trace: expect.any(String),
         })
       );
+    });
 
-      // The object should NOT be merged since string comes first
-      expect(mockWinstonLogger.info).not.toHaveBeenCalledWith(
-        expect.anything(),
+    test('should support string-first with multiple objects', () => {
+      // Test the specific pattern: logger.info('message', { obj })
+      logger.info('User action', { user: 'alice', action: 'login' }, { success: true });
+
+      expect(mockWinstonLogger.info).toHaveBeenCalledWith(
+        'User action',
         expect.objectContaining({
-          shouldNotBeMerged: true,
+          user: 'alice',
+          action: 'login',
+          success: true,
+          stack_trace: expect.any(String),
         })
       );
     });
@@ -253,22 +261,15 @@ describe('TraceRoot Logger Structured Logging', () => {
   });
 
   describe('Clean API behavior', () => {
-    test('should not merge metadata when string comes first', () => {
-      // This pattern is no longer supported - additional args are ignored
-      logger.info('Message first', { shouldBeIgnored: 'value' });
+    test('should merge metadata when string comes first', () => {
+      // This pattern is now supported - string first, then objects are merged
+      logger.info('Message first', { shouldBeIncluded: 'value' });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Message first',
         expect.objectContaining({
+          shouldBeIncluded: 'value',
           stack_trace: expect.any(String),
-        })
-      );
-
-      // Should NOT contain the metadata
-      expect(mockWinstonLogger.info).not.toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          shouldBeIgnored: 'value',
         })
       );
     });
