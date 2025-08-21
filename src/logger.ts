@@ -683,7 +683,10 @@ export class TraceRootLogger {
         this.cloudWatchTransport = newCloudWatchTransport;
         console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
       } catch (addError: any) {
-        console.error('[TraceRoot] Failed to add CloudWatch transport to logger:', addError?.message || addError);
+        console.error(
+          '[TraceRoot] Failed to add CloudWatch transport to logger:',
+          addError?.message || addError
+        );
       }
     } catch (error: any) {
       console.error('[TraceRoot] Failed to recreate CloudWatch transport:', error.message);
@@ -751,7 +754,8 @@ export class TraceRootLogger {
                   return obj;
                 }, {} as any);
 
-              const metaStr = Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
+              const metaStr =
+                Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
               return `${info.timestamp} [${info.level}] ${info.message}${metaStr}`;
             })
           ),
@@ -817,7 +821,10 @@ export class TraceRootLogger {
       try {
         this.logger.add(this.cloudWatchTransport);
       } catch (addError: any) {
-        console.error('[TraceRoot] Failed to add initial CloudWatch transport to logger:', addError?.message || addError);
+        console.error(
+          '[TraceRoot] Failed to add initial CloudWatch transport to logger:',
+          addError?.message || addError
+        );
         this.cloudWatchTransport = null;
       }
     } catch (error: any) {
