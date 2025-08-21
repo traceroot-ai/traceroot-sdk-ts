@@ -544,26 +544,39 @@ export class TraceRootLogger {
     this.config = config;
     this.loggerName = name || config.service_name;
 
-    this.logger = winston.createLogger({
-      level: !config.enable_log_console_export ? 'silent' : 'debug',
-      format: winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
-        traceCorrelationFormat(config, this.loggerName)(),
-        winston.format.errors({ stack: true }),
-        winston.format.json()
-      ),
-      defaultMeta: {
-        service_name: config.service_name,
-        github_commit_hash: config.github_commit_hash,
-        github_owner: config.github_owner,
-        github_repo_name: config.github_repo_name,
-        environment: config.environment,
-      },
-      transports: [],
-      // Explicitly handle all transport events
-      handleExceptions: false,
-      handleRejections: false,
-    });
+    try {
+      this.logger = winston.createLogger({
+        level: !config.enable_log_console_export ? 'silent' : 'debug',
+        format: winston.format.combine(
+          winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
+          traceCorrelationFormat(config, this.loggerName)(),
+          winston.format.errors({ stack: true }),
+          winston.format.json()
+        ),
+        defaultMeta: {
+          service_name: config.service_name,
+          github_commit_hash: config.github_commit_hash,
+          github_owner: config.github_owner,
+          github_repo_name: config.github_repo_name,
+          environment: config.environment,
+        },
+        transports: [],
+        // Explicitly handle all transport events
+        handleExceptions: false,
+        handleRejections: false,
+      });
+    } catch (error: any) {
+      console.error('[TraceRoot] Failed to create winston logger:', error?.message || error);
+      // Create a minimal fallback logger that just uses console
+      this.logger = {
+        debug: (msg: any, meta?: any) => console.debug(`[DEBUG] ${msg}`, meta || ''),
+        info: (msg: any, meta?: any) => console.info(`[INFO] ${msg}`, meta || ''),
+        warn: (msg: any, meta?: any) => console.warn(`[WARN] ${msg}`, meta || ''),
+        error: (msg: any, meta?: any) => console.error(`[ERROR] ${msg}`, meta || ''),
+        add: () => {}, // No-op for transport addition
+        transports: [],
+      } as any;
+    }
   }
 
   /**
@@ -664,12 +677,14 @@ export class TraceRootLogger {
       });
 
       // Add the new transport to the logger
-      this.logger.add(newCloudWatchTransport);
-
-      // Update the reference to the new transport
-      this.cloudWatchTransport = newCloudWatchTransport;
-
-      console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
+      try {
+        this.logger.add(newCloudWatchTransport);
+        // Update the reference to the new transport
+        this.cloudWatchTransport = newCloudWatchTransport;
+        console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
+      } catch (addError: any) {
+        console.error('[TraceRoot] Failed to add CloudWatch transport to logger:', addError?.message || addError);
+      }
     } catch (error: any) {
       console.error('[TraceRoot] Failed to recreate CloudWatch transport:', error.message);
     }
@@ -720,32 +735,37 @@ export class TraceRootLogger {
   private setupTransports(): void {
     // Console logger for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
-      // Create a separate logger specifically for console output - simple format with just user data
-      this.consoleLogger = winston.createLogger({
-        level: 'debug',
-        format: winston.format.combine(
-          winston.format.timestamp(),
-          winston.format.colorize(),
-          winston.format.printf((info: any) => {
-            // Simple console format - just timestamp, level, message, and user metadata
-            const userMeta = Object.keys(info)
-              .filter(key => !['level', 'message', 'timestamp'].includes(key))
-              .reduce((obj, key) => {
-                obj[key] = info[key];
-                return obj;
-              }, {} as any);
+      try {
+        // Create a separate logger specifically for console output - simple format with just user data
+        this.consoleLogger = winston.createLogger({
+          level: 'debug',
+          format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.colorize(),
+            winston.format.printf((info: any) => {
+              // Simple console format - just timestamp, level, message, and user metadata
+              const userMeta = Object.keys(info)
+                .filter(key => !['level', 'message', 'timestamp'].includes(key))
+                .reduce((obj, key) => {
+                  obj[key] = info[key];
+                  return obj;
+                }, {} as any);
 
-            const metaStr = Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
-            return `${info.timestamp} [${info.level}] ${info.message}${metaStr}`;
-          })
-        ),
-        transports: [
-          new winston.transports.Console({
-            handleExceptions: false,
-            handleRejections: false,
-          }),
-        ],
-      });
+              const metaStr = Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
+              return `${info.timestamp} [${info.level}] ${info.message}${metaStr}`;
+            })
+          ),
+          transports: [
+            new winston.transports.Console({
+              handleExceptions: false,
+              handleRejections: false,
+            }),
+          ],
+        });
+      } catch (error: any) {
+        console.error('[TraceRoot] Failed to create console logger:', error?.message || error);
+        this.consoleLogger = null;
+      }
     }
 
     // Setup appropriate transport based on mode and cloud export setting
@@ -794,7 +814,12 @@ export class TraceRootLogger {
         uploadRate: 1000, // Upload every 1 second
         messageFormatter: (item: any) => this.formatCloudWatchMessage(item),
       });
-      this.logger.add(this.cloudWatchTransport);
+      try {
+        this.logger.add(this.cloudWatchTransport);
+      } catch (addError: any) {
+        console.error('[TraceRoot] Failed to add initial CloudWatch transport to logger:', addError?.message || addError);
+        this.cloudWatchTransport = null;
+      }
     } catch (error: any) {
       void error;
     }
@@ -807,11 +832,15 @@ export class TraceRootLogger {
 
     // Always add a minimal null transport to prevent Winston warnings
     // Create a simple transport that does nothing but prevents "no transports" error
-    const nullTransport = new winston.transports.Console({
-      level: 'silent', // Set to silent to minimize processing
-      silent: true, // Make it completely silent
-    });
-    this.logger.add(nullTransport);
+    try {
+      const nullTransport = new winston.transports.Console({
+        level: 'silent', // Set to silent to minimize processing
+        silent: true, // Make it completely silent
+      });
+      this.logger.add(nullTransport);
+    } catch (error: any) {
+      console.error('[TraceRoot] Failed to add null transport:', error?.message || error);
+    }
   }
 
   private incrementSpanLogCount(attributeName: string): void {
@@ -833,8 +862,12 @@ export class TraceRootLogger {
    */
   private logToConsole(level: string, message: string, userMetadata: any): void {
     if (this.consoleLogger) {
-      // Pass only the user-provided metadata (from processLogArgs)
-      (this.consoleLogger as any)[level](message, userMetadata || {});
+      try {
+        // Pass only the user-provided metadata (from processLogArgs)
+        (this.consoleLogger as any)[level](message, userMetadata || {});
+      } catch (error: any) {
+        console.error(`[TraceRoot] Console logger ${level} error:`, error?.message || error);
+      }
     }
   }
 
@@ -1020,14 +1053,22 @@ export class TraceRootLogger {
     this.logToConsole('debug', message, metadata);
 
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
-      this.logger.debug(message, logData);
+      try {
+        this.logger.debug(message, logData);
+      } catch (error: any) {
+        console.error('[TraceRoot] Logger debug error (local mode):', error?.message || error);
+      }
       this.incrementSpanLogCount('num_debug_logs');
       return;
     }
 
     await this.checkAndRefreshCredentials();
 
-    this.logger.debug(message, logData);
+    try {
+      this.logger.debug(message, logData);
+    } catch (error: any) {
+      console.error('[TraceRoot] Logger debug error (cloud mode):', error?.message || error);
+    }
     this.incrementSpanLogCount('num_debug_logs');
   }
 
@@ -1045,13 +1086,21 @@ export class TraceRootLogger {
     this.logToConsole('info', message, metadata);
 
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
-      this.logger.info(message, logData);
+      try {
+        this.logger.info(message, logData);
+      } catch (error: any) {
+        console.error('[TraceRoot] Logger info error (local mode):', error?.message || error);
+      }
       this.incrementSpanLogCount('num_info_logs');
       return;
     }
 
     await this.checkAndRefreshCredentials();
-    this.logger.info(message, logData);
+    try {
+      this.logger.info(message, logData);
+    } catch (error: any) {
+      console.error('[TraceRoot] Logger info error (cloud mode):', error?.message || error);
+    }
     this.incrementSpanLogCount('num_info_logs');
   }
 
@@ -1069,14 +1118,22 @@ export class TraceRootLogger {
     this.logToConsole('warn', message, metadata);
 
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
-      this.logger.warn(message, logData);
+      try {
+        this.logger.warn(message, logData);
+      } catch (error: any) {
+        console.error('[TraceRoot] Logger warn error (local mode):', error?.message || error);
+      }
       this.incrementSpanLogCount('num_warning_logs');
       return;
     }
 
     await this.checkAndRefreshCredentials();
 
-    this.logger.warn(message, logData);
+    try {
+      this.logger.warn(message, logData);
+    } catch (error: any) {
+      console.error('[TraceRoot] Logger warn error (cloud mode):', error?.message || error);
+    }
     this.incrementSpanLogCount('num_warning_logs');
   }
 
@@ -1094,14 +1151,22 @@ export class TraceRootLogger {
     this.logToConsole('error', message, metadata);
 
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
-      this.logger.error(message, logData);
+      try {
+        this.logger.error(message, logData);
+      } catch (error: any) {
+        console.error('[TraceRoot] Logger error error (local mode):', error?.message || error);
+      }
       this.incrementSpanLogCount('num_error_logs');
       return;
     }
 
     await this.checkAndRefreshCredentials();
 
-    this.logger.error(message, logData);
+    try {
+      this.logger.error(message, logData);
+    } catch (error: any) {
+      console.error('[TraceRoot] Logger error error (cloud mode):', error?.message || error);
+    }
     this.incrementSpanLogCount('num_error_logs');
   }
 
@@ -1119,14 +1184,22 @@ export class TraceRootLogger {
     this.logToConsole('error', message, metadata);
 
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
-      this.logger.error(message, logData);
+      try {
+        this.logger.error(message, logData);
+      } catch (error: any) {
+        console.error('[TraceRoot] Logger critical error (local mode):', error?.message || error);
+      }
       this.incrementSpanLogCount('num_critical_logs');
       return;
     }
 
     await this.checkAndRefreshCredentials();
 
-    this.logger.error(message, logData);
+    try {
+      this.logger.error(message, logData);
+    } catch (error: any) {
+      console.error('[TraceRoot] Logger critical error (cloud mode):', error?.message || error);
+    }
     this.incrementSpanLogCount('num_critical_logs');
   }
 
