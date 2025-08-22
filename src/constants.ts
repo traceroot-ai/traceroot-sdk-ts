@@ -31,3 +31,10 @@ export const BATCH_SPAN_PROCESSOR_CONFIG = {
   SCHEDULED_DELAY_MILLIS: 500,
   MAX_QUEUE_SIZE: 50,
 } as const;
+
+/**
+ * API endpoints
+ */
+export const API_ENDPOINTS = {
+  VERIFY_CREDENTIALS: 'https://api.test.traceroot.ai/v1/verify/credentials',
+} as const;

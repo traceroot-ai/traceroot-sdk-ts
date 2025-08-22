@@ -7,6 +7,7 @@ import WinstonCloudWatch from 'winston-cloudwatch';
 import { trace as otelTrace } from '@opentelemetry/api';
 import { TraceRootConfigImpl } from './config';
 import { AwsCredentials } from './types';
+import { API_ENDPOINTS } from './constants';
 
 /**
  * Custom Winston format for trace correlation
@@ -594,7 +595,11 @@ export class TraceRootLogger {
    */
   private async checkAndRefreshCredentials(): Promise<AwsCredentials | null> {
     // If we're in local mode or cloud export is disabled, no credentials needed
-    if (this.config.local_mode || !this.config.enable_log_cloud_export) {
+    if (
+      this.config.local_mode ||
+      !this.config.enable_span_cloud_export ||
+      !this.config.enable_log_cloud_export
+    ) {
       return null;
     }
 
@@ -605,11 +610,14 @@ export class TraceRootLogger {
       return null;
     }
 
-    // Check if credentials are expired (10 minutes before actual expiration)
+    // Check if credentials are expired (30 minutes before actual expiration)
+    // Both now and expiration_utc are in UTC time for accurate comparison
+    // It's ok that now is in local time here
     const now = new Date();
-    const expirationTime = new Date(credentials.expiration_utc);
-    const bufferTime = 10 * 60 * 1000; // 10 minutes in milliseconds
+    const expirationTime = credentials.expiration_utc; // Already a UTC Date object from API parsing
+    const bufferTime = 30 * 60 * 1000; // 30 minutes in milliseconds
 
+    // getTime returns the number of milliseconds since January 1, 1970, 00:00:00 UTC
     if (now.getTime() >= expirationTime.getTime() - bufferTime) {
       console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
 
@@ -703,7 +711,7 @@ export class TraceRootLogger {
     }
 
     try {
-      const apiUrl = `https://api.test.traceroot.ai/v1/verify/credentials?token=${encodeURIComponent(this.config.token)}`;
+      const apiUrl = `${API_ENDPOINTS.VERIFY_CREDENTIALS}?token=${encodeURIComponent(this.config.token)}`;
 
       // Use fetch for async HTTP request
       const response = await fetch(apiUrl, {
@@ -719,6 +727,19 @@ export class TraceRootLogger {
       }
 
       const credentialsData = (await response.json()) as AwsCredentials;
+
+      // Ensure expiration_utc is properly parsed as UTC Date (same logic as in credential.ts)
+      if (credentialsData.expiration_utc) {
+        // Force UTC parsing by ensuring the string has 'Z' suffix
+        const expirationValue = credentialsData.expiration_utc as any; // Raw API response has string
+        const utcString =
+          typeof expirationValue === 'string'
+            ? expirationValue.endsWith('Z')
+              ? expirationValue
+              : expirationValue + 'Z'
+            : expirationValue;
+        credentialsData.expiration_utc = new Date(utcString) as any;
+      }
 
       // Update config with new credentials
       this.config._name = credentialsData.hash;
