@@ -1,6 +1,6 @@
 {
   "name": "traceroot-sdk-ts",
-  "version": "0.0.1-alpha.18",
+  "version": "0.0.1-alpha.19",
   "description": "TypeScript SDK for TraceRoot tracing and logging",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
