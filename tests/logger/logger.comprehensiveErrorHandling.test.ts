@@ -285,7 +285,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
   });
 
   test('should handle transport addition failures', () => {
-    // Set up valid credentials
+    // Set up valid credentials and disable console export to focus on CloudWatch
     const validCredentials = {
       aws_access_key_id: 'valid-key',
       aws_secret_access_key: 'valid-secret',
@@ -297,23 +297,13 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     };
 
     (mockConfig as any)._awsCredentials = validCredentials;
+    mockConfig.enable_log_console_export = false; // Disable console export to avoid confusion
 
-    // Mock winston logger.add to throw
+    // Enable throw mode to simulate transport addition failures
     const winston = require('winston');
-    const mockLogger = {
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-      add: jest.fn(() => {
-        throw new Error('Failed to add transport - logger is corrupted');
-      }),
-      on: jest.fn(),
-      transports: [],
-    };
-    winston.createLogger.mockReturnValue(mockLogger);
+    (winston as any).setThrowMode(true);
 
-    let logger;
+    let logger!: TraceRootLogger;
 
     // Should handle transport addition failure
     expect(() => {
@@ -322,10 +312,10 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     expect(logger).toBeDefined();
 
-    // Should log transport addition errors
+    // Should log CloudWatch transport addition errors
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '[TraceRoot] Failed to add initial CloudWatch transport to logger:',
-      'Failed to add transport - logger is corrupted'
+      'Winston add transport error'
     );
   });
 

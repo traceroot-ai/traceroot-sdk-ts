@@ -131,6 +131,17 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
       if (response) {
         try {
           const credentials = JSON.parse(response);
+          // Ensure expiration_utc is properly parsed as UTC Date
+          if (credentials.expiration_utc) {
+            // Force UTC parsing by ensuring the string has 'Z' suffix
+            const utcString =
+              typeof credentials.expiration_utc === 'string'
+                ? credentials.expiration_utc.endsWith('Z')
+                  ? credentials.expiration_utc
+                  : credentials.expiration_utc + 'Z'
+                : credentials.expiration_utc;
+            credentials.expiration_utc = new Date(utcString);
+          }
           return credentials;
         } catch {
           // Failed to parse JSON, try fallback
@@ -145,6 +156,17 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
     if (fallbackResponse) {
       try {
         const credentials = JSON.parse(fallbackResponse);
+        // Ensure expiration_utc is properly parsed as UTC Date
+        if (credentials.expiration_utc) {
+          // Force UTC parsing by ensuring the string has 'Z' suffix
+          const utcString =
+            typeof credentials.expiration_utc === 'string'
+              ? credentials.expiration_utc.endsWith('Z')
+                ? credentials.expiration_utc
+                : credentials.expiration_utc + 'Z'
+              : credentials.expiration_utc;
+          credentials.expiration_utc = new Date(utcString);
+        }
         return credentials;
       } catch {
         // Failed to parse JSON
