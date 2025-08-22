@@ -192,7 +192,7 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
       );
-      
+
       expect(mockWinstonLogger.info).toHaveBeenCalled();
     });
 
