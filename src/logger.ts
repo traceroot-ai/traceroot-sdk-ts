@@ -617,6 +617,11 @@ export class TraceRootLogger {
     const expirationTime = credentials.expiration_utc; // Already a UTC Date object from API parsing
     const bufferTime = 30 * 60 * 1000; // 30 minutes in milliseconds
 
+    // If no expiration time, treat credentials as valid
+    if (!expirationTime) {
+      return credentials;
+    }
+
     // getTime returns the number of milliseconds since January 1, 1970, 00:00:00 UTC
     if (now.getTime() >= expirationTime.getTime() - bufferTime) {
       console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
