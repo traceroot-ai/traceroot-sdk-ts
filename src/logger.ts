@@ -913,6 +913,8 @@ export class TraceRootLogger {
    * - logger.info({ obj1 }, { obj2 }, 'message') - multiple objects merged, then message
    * - logger.info({ metadata }) - object only, uses default message
    * - logger.info({ obj1 }, { obj2 }) - multiple objects merged, uses default message
+   *
+   * Note: Duplicate properties are preserved with indexed keys (e.g., property_0, property_1)
    */
   private processLogArgs(
     messageOrObj: string | any,
@@ -948,15 +950,47 @@ export class TraceRootLogger {
       }
     }
 
-    // Merge all collected objects
+    // Merge all collected objects without overriding duplicate properties
     if (objects.length > 0) {
-      metadata = objects.reduce((merged, obj) => ({ ...merged, ...obj }), {});
+      metadata = this.mergeObjectsPreservingDuplicates(objects);
     }
 
     // Set the message
     message = foundMessage || 'Log entry';
 
     return { message, metadata };
+  }
+
+  /**
+   * Merge objects while preserving duplicate properties by adding indexed suffixes
+   * Example: [{a: 'property'}, {a: 'prop'}] becomes {a_0: 'property', a_1: 'prop'}
+   */
+  private mergeObjectsPreservingDuplicates(objects: any[]): any {
+    const result: any = {};
+    const keyCounters: Record<string, number> = {};
+
+    for (const obj of objects) {
+      for (const [key, value] of Object.entries(obj)) {
+        if (result.hasOwnProperty(key) || keyCounters.hasOwnProperty(key)) {
+          // Key already exists, add indexed suffix
+          const counter = keyCounters[key] || 0;
+          keyCounters[key] = counter + 1;
+
+          // If this is the first duplicate, also rename the original
+          if (counter === 0) {
+            const originalValue = result[key];
+            delete result[key];
+            result[`${key}_0`] = originalValue;
+          }
+
+          result[`${key}_${counter + 1}`] = value;
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+
+    return result;
   }
 
   private addSpanEventDirectly(level: string, message: string, meta?: any): void {

@@ -134,14 +134,15 @@ describe('TraceRoot Logger Multiple Object Merging', () => {
       );
     });
 
-    test('should handle overlapping keys - later objects override earlier ones', () => {
+    test('should handle overlapping keys - preserve both values with indexed keys', () => {
       logger.info({ user: 'alice', status: 'pending' }, { status: 'completed' }, 'Task updated');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Task updated',
         expect.objectContaining({
           user: 'alice',
-          status: 'completed', // Later object's value should win
+          status_0: 'pending', // First occurrence gets _0 suffix
+          status_1: 'completed', // Second occurrence gets _1 suffix
           stack_trace: expect.any(String),
         })
       );

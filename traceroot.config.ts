@@ -19,7 +19,7 @@ const config: TraceRootConfigFile = {
   enable_log_console_export: true,
 
   // Whether to enable cloud export of spans and logs
-  enable_span_cloud_export: true,
+  enable_span_cloud_export: false,
   enable_log_cloud_export: true,
 
   // Local mode that whether to store all data locally
