@@ -95,7 +95,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
   describe('Basic child logger creation', () => {
     test('should create child logger with context', () => {
       const childLogger = parentLogger.child({ module: 'auth' });
-      
+
       expect(childLogger).toBeDefined();
       expect(childLogger).toBeInstanceOf(TraceRootLogger);
     });
@@ -145,7 +145,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
     test('should support nested child loggers', () => {
       const serviceChild = parentLogger.child({ service: 'auth' });
       const operationChild = serviceChild.child({ operation: 'login' });
-      
+
       operationChild.info('Processing login');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
@@ -161,7 +161,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
     test('nested child context should merge correctly', () => {
       const l1Child = parentLogger.child({ level1: 'value1', shared: 'parent' });
       const l2Child = l1Child.child({ level2: 'value2', shared: 'child' });
-      
+
       l2Child.info('Nested message');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
@@ -179,7 +179,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       const child1 = parentLogger.child({ l1: 'value1' });
       const child2 = child1.child({ l2: 'value2' });
       const child3 = child2.child({ l3: 'value3' });
-      
+
       child3.info('Deep nesting test');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
@@ -265,13 +265,13 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
 
   describe('Complex context merging scenarios', () => {
     test('should handle multiple objects in child context and runtime', () => {
-      const childLogger = parentLogger.child({ 
-        service: 'auth', 
-        version: '1.0' 
+      const childLogger = parentLogger.child({
+        service: 'auth',
+        version: '1.0'
       });
-      
+
       childLogger.info(
-        { userId: '123', action: 'login' }, 
+        { userId: '123', action: 'login' },
         { sessionId: 'abc', timestamp: Date.now() },
         'Complex merge test'
       );
@@ -304,11 +304,11 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
     });
 
     test('should handle complex nested objects', () => {
-      const childLogger = parentLogger.child({ 
+      const childLogger = parentLogger.child({
         config: { env: 'test', debug: true }
       });
-      
-      childLogger.info({ 
+
+      childLogger.info({
         request: { method: 'POST', path: '/login' }
       }, 'Complex objects');
 
@@ -328,14 +328,14 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       const serviceChild = parentLogger.child({ service: 'auth' });
       const moduleChild = serviceChild.child({ module: 'login' });
       const operationChild = moduleChild.child({ operation: 'validate' });
-      
+
       operationChild.info('Deeply nested child logger');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Deeply nested child logger',
         expect.objectContaining({
           service: 'auth',
-          module: 'login', 
+          module: 'login',
           operation: 'validate',
           stack_trace: expect.any(String),
         })
@@ -346,7 +346,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
   describe('Flush delegation', () => {
     test('child logger flush should work without errors', async () => {
       const childLogger = parentLogger.child({ module: 'test' });
-      
+
       // Should not throw and should complete
       await expect(childLogger.flush()).resolves.toBeUndefined();
     });
