@@ -142,7 +142,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
         'Multiple levels',
         expect.objectContaining({
           level_0: 'info',
-          level_1: 'warn', 
+          level_1: 'warn',
           level_2: 'error',
           stack_trace: expect.any(String),
         })
@@ -151,8 +151,8 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
     test('should handle multiple properties with duplicates', () => {
       logger.info(
-        {user: 'alice', action: 'read'}, 
-        {user: 'bob', resource: 'file'}, 
+        {user: 'alice', action: 'read'},
+        {user: 'bob', resource: 'file'},
         {action: 'write', timestamp: '2023-01-01'}
       );
 
@@ -189,7 +189,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     test('should handle nested object duplicates', () => {
       const obj1 = {config: {enabled: true}};
       const obj2 = {config: {timeout: 1000}};
-      
+
       logger.info(obj1, obj2, 'Nested configs');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
@@ -217,14 +217,14 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
     test('should preserve property order within each object', () => {
       logger.info(
-        {first: 1, second: 2, third: 3}, 
+        {first: 1, second: 2, third: 3},
         {second: 'two', fourth: 4, first: 'one'}
       );
 
-      const expectedCall = mockWinstonLogger.info.mock.calls.find((call: any[]) => 
+      const expectedCall = mockWinstonLogger.info.mock.calls.find((call: any[]) =>
         call[1] && call[1].stack_trace
       );
-      
+
       expect(expectedCall).toBeDefined();
       expect(expectedCall[1]).toEqual(expect.objectContaining({
         first_0: 1,
