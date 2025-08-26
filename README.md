@@ -17,7 +17,7 @@
 [![TraceRoot.AI Website][company-website-image]][company-website-url]
 [![X][zecheng-x-image]][zecheng-x-url]
 [![X][xinwei-x-image]][xinwei-x-url]
-\[![Y Combinator][y-combinator-image]\][y-combinator-url]
+[![Y Combinator][y-combinator-image]][y-combinator-url]
 
 </div>
 
@@ -329,5 +329,7 @@ Please reach out to founders@traceroot.ai or visit [TraceRoot.AI](https://tracer
 [testing-url]: https://github.com/traceroot-ai/traceroot/actions/workflows/test.yml
 [xinwei-x-image]: https://img.shields.io/twitter/follow/xinwei_97?style=social
 [xinwei-x-url]: https://x.com/xinwei_97
+[y-combinator-image]: https://img.shields.io/badge/Combinator-S25-orange?logo=ycombinator&labelColor=white
+[y-combinator-url]: https://www.ycombinator.com/companies/traceroot-ai
 [zecheng-x-image]: https://img.shields.io/twitter/follow/zechengzh?style=social
 [zecheng-x-url]: https://x.com/zechengzh
