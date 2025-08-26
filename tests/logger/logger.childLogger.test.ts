@@ -120,8 +120,8 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'User login attempt',
         expect.objectContaining({
-          module: 'auth',  // From child context
-          userId: '123',   // From runtime metadata
+          module: 'auth', // From child context
+          userId: '123', // From runtime metadata
           stack_trace: expect.any(String),
         })
       );
@@ -134,7 +134,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Task finished',
         expect.objectContaining({
-          status: 'pending',  // Child context takes precedence (pino behavior)
+          status: 'pending', // Child context takes precedence (pino behavior)
           stack_trace: expect.any(String),
         })
       );
@@ -151,8 +151,8 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Processing login',
         expect.objectContaining({
-          service: 'auth',      // From first level
-          operation: 'login',   // From second level
+          service: 'auth', // From first level
+          operation: 'login', // From second level
           stack_trace: expect.any(String),
         })
       );
@@ -169,7 +169,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
         expect.objectContaining({
           level1: 'value1',
           level2: 'value2',
-          shared: 'child',  // More specific child overrides parent in hierarchy
+          shared: 'child', // More specific child overrides parent in hierarchy
           stack_trace: expect.any(String),
         })
       );
@@ -267,7 +267,7 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
     test('should handle multiple objects in child context and runtime', () => {
       const childLogger = parentLogger.child({
         service: 'auth',
-        version: '1.0'
+        version: '1.0',
       });
 
       childLogger.info(
@@ -279,12 +279,12 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Complex merge test',
         expect.objectContaining({
-          service: 'auth',      // From child context
-          version: '1.0',       // From child context
-          userId: '123',        // From runtime
-          action: 'login',      // From runtime
-          sessionId: 'abc',     // From runtime
-          timestamp: expect.any(Number),  // From runtime
+          service: 'auth', // From child context
+          version: '1.0', // From child context
+          userId: '123', // From runtime
+          action: 'login', // From runtime
+          sessionId: 'abc', // From runtime
+          timestamp: expect.any(Number), // From runtime
           stack_trace: expect.any(String),
         })
       );
@@ -305,12 +305,15 @@ describe('TraceRoot Logger Child Logger Functionality', () => {
 
     test('should handle complex nested objects', () => {
       const childLogger = parentLogger.child({
-        config: { env: 'test', debug: true }
+        config: { env: 'test', debug: true },
       });
 
-      childLogger.info({
-        request: { method: 'POST', path: '/login' }
-      }, 'Complex objects');
+      childLogger.info(
+        {
+          request: { method: 'POST', path: '/login' },
+        },
+        'Complex objects'
+      );
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Complex objects',

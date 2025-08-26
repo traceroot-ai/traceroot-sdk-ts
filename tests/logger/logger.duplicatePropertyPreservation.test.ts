@@ -93,7 +93,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
   describe('Simple duplicate property cases', () => {
     test('should preserve both values when same property appears in two objects', () => {
-      logger.info({a: 'property'}, {a: 'prop'});
+      logger.info({ a: 'property' }, { a: 'prop' });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Log entry',
@@ -106,7 +106,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should preserve values with string message', () => {
-      logger.info({status: 'pending'}, 'Processing', {status: 'completed'});
+      logger.info({ status: 'pending' }, 'Processing', { status: 'completed' });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Processing',
@@ -119,7 +119,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should handle mixed unique and duplicate properties', () => {
-      logger.info({user: 'alice', status: 'pending'}, {action: 'login', status: 'success'});
+      logger.info({ user: 'alice', status: 'pending' }, { action: 'login', status: 'success' });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Log entry',
@@ -136,7 +136,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
   describe('Multiple duplicates', () => {
     test('should handle three objects with same property', () => {
-      logger.info({level: 'info'}, {level: 'warn'}, {level: 'error'}, 'Multiple levels');
+      logger.info({ level: 'info' }, { level: 'warn' }, { level: 'error' }, 'Multiple levels');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Multiple levels',
@@ -151,9 +151,9 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
     test('should handle multiple properties with duplicates', () => {
       logger.info(
-        {user: 'alice', action: 'read'},
-        {user: 'bob', resource: 'file'},
-        {action: 'write', timestamp: '2023-01-01'}
+        { user: 'alice', action: 'read' },
+        { user: 'bob', resource: 'file' },
+        { action: 'write', timestamp: '2023-01-01' }
       );
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
@@ -173,7 +173,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
 
   describe('Edge cases', () => {
     test('should handle objects with null and undefined duplicate values', () => {
-      logger.info({value: null}, {value: undefined}, {value: 'actual'});
+      logger.info({ value: null }, { value: undefined }, { value: 'actual' });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Log entry',
@@ -187,23 +187,23 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should handle nested object duplicates', () => {
-      const obj1 = {config: {enabled: true}};
-      const obj2 = {config: {timeout: 1000}};
+      const obj1 = { config: { enabled: true } };
+      const obj2 = { config: { timeout: 1000 } };
 
       logger.info(obj1, obj2, 'Nested configs');
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Nested configs',
         expect.objectContaining({
-          config_0: {enabled: true},
-          config_1: {timeout: 1000},
+          config_0: { enabled: true },
+          config_1: { timeout: 1000 },
           stack_trace: expect.any(String),
         })
       );
     });
 
     test('should handle array value duplicates', () => {
-      logger.info({tags: ['api', 'auth']}, {tags: ['user', 'login']});
+      logger.info({ tags: ['api', 'auth'] }, { tags: ['user', 'login'] });
 
       expect(mockWinstonLogger.info).toHaveBeenCalledWith(
         'Log entry',
@@ -216,31 +216,30 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should preserve property order within each object', () => {
-      logger.info(
-        {first: 1, second: 2, third: 3},
-        {second: 'two', fourth: 4, first: 'one'}
-      );
+      logger.info({ first: 1, second: 2, third: 3 }, { second: 'two', fourth: 4, first: 'one' });
 
-      const expectedCall = mockWinstonLogger.info.mock.calls.find((call: any[]) =>
-        call[1] && call[1].stack_trace
+      const expectedCall = mockWinstonLogger.info.mock.calls.find(
+        (call: any[]) => call[1] && call[1].stack_trace
       );
 
       expect(expectedCall).toBeDefined();
-      expect(expectedCall[1]).toEqual(expect.objectContaining({
-        first_0: 1,
-        second_0: 2,
-        third: 3,
-        second_1: 'two',
-        fourth: 4,
-        first_1: 'one',
-        stack_trace: expect.any(String),
-      }));
+      expect(expectedCall[1]).toEqual(
+        expect.objectContaining({
+          first_0: 1,
+          second_0: 2,
+          third: 3,
+          second_1: 'two',
+          fourth: 4,
+          first_1: 'one',
+          stack_trace: expect.any(String),
+        })
+      );
     });
   });
 
   describe('All log levels', () => {
     test('should preserve duplicates in debug logs', () => {
-      logger.debug({type: 'request'}, {type: 'response'});
+      logger.debug({ type: 'request' }, { type: 'response' });
 
       expect(mockWinstonLogger.debug).toHaveBeenCalledWith(
         'Log entry',
@@ -253,7 +252,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should preserve duplicates in warn logs', () => {
-      logger.warn({severity: 'low'}, {severity: 'high'}, 'Warning');
+      logger.warn({ severity: 'low' }, { severity: 'high' }, 'Warning');
 
       expect(mockWinstonLogger.warn).toHaveBeenCalledWith(
         'Warning',
@@ -266,7 +265,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should preserve duplicates in error logs', () => {
-      logger.error({code: 400}, {code: 500}, 'Multiple errors');
+      logger.error({ code: 400 }, { code: 500 }, 'Multiple errors');
 
       expect(mockWinstonLogger.error).toHaveBeenCalledWith(
         'Multiple errors',
@@ -279,7 +278,7 @@ describe('TraceRoot Logger Duplicate Property Preservation', () => {
     });
 
     test('should preserve duplicates in critical logs', () => {
-      logger.critical({alert: 'system'}, {alert: 'security'});
+      logger.critical({ alert: 'system' }, { alert: 'security' });
 
       expect(mockWinstonLogger.error).toHaveBeenCalledWith(
         'Log entry',

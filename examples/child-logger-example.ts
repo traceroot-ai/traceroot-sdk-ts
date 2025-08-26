@@ -35,11 +35,7 @@ async function main() {
   authLogger.info({ attempt: 'second' }, 'This will show both module: auth and attempt: second');
 
   // Multiple objects still work
-  apiLogger.info(
-    { requestId: 'req123' },
-    { userId: 'user456' },
-    'Complex API operation'
-  );
+  apiLogger.info({ requestId: 'req123' }, { userId: 'user456' }, 'Complex API operation');
 
   console.log('\n=== Child Logger Example Complete ===');
   console.log('All log entries above include their respective child contexts automatically!');
@@ -47,11 +43,15 @@ async function main() {
   console.log('- dbLogger logs include { module: "database" }');
   console.log('- apiLogger logs include { module: "api", version: "1.0" }');
   console.log('- Nested loggers inherit and merge all parent contexts');
-  console.log('- Child context is persistent and cannot be overridden by runtime args (pino behavior)');
+  console.log(
+    '- Child context is persistent and cannot be overridden by runtime args (pino behavior)'
+  );
 }
 
-main().then(async () => {
-  await traceroot.forceFlushLogger();
-  await traceroot.shutdownLogger();
-  process.exit(0);
-}).catch(console.error);
+main()
+  .then(async () => {
+    await traceroot.forceFlushLogger();
+    await traceroot.shutdownLogger();
+    process.exit(0);
+  })
+  .catch(console.error);

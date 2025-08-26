@@ -1298,10 +1298,10 @@ export class TraceRootLogger {
     Object.assign(childLogger, {
       config: this.config,
       loggerName: this.loggerName,
-      logger: this.getRootLogger().logger,  // Share logger instance with root
-      consoleLogger: this.getRootLogger().consoleLogger,  // Share console logger
-      cloudWatchTransport: null,  // Child doesn't manage transports
-      credentialsRefreshPromise: null,  // Child doesn't manage credentials
+      logger: this.getRootLogger().logger, // Share logger instance with root
+      consoleLogger: this.getRootLogger().consoleLogger, // Share console logger
+      cloudWatchTransport: null, // Child doesn't manage transports
+      credentialsRefreshPromise: null, // Child doesn't manage credentials
     });
 
     // Set up child context by merging parent context with new context
