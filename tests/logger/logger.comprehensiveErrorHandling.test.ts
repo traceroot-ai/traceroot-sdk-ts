@@ -62,8 +62,19 @@ jest.mock('winston', () => {
 
 // Mock winston-cloudwatch to simulate various CloudWatch errors
 jest.mock('winston-cloudwatch', () => {
-  return jest.fn().mockImplementation(() => {
-    // Randomly throw different types of errors
+  const mockConstructor = jest.fn().mockImplementation(() => {
+    // Check if we're in a controlled test scenario
+    const testName = expect.getState().currentTestName;
+
+    // For transport addition test, ensure CloudWatch constructor succeeds
+    // so we can test the winston.add() failure specifically
+    if (testName && testName.includes('transport addition failures')) {
+      return {
+        on: jest.fn(),
+      };
+    }
+
+    // For other tests, randomly throw different types of errors
     const random = Math.random();
     if (random < 0.3) {
       throw new Error('CloudWatch transport initialization failed - Invalid credentials');
@@ -72,6 +83,8 @@ jest.mock('winston-cloudwatch', () => {
       on: jest.fn(),
     };
   });
+
+  return mockConstructor;
 });
 
 jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
