@@ -297,10 +297,22 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       );
 
       // All logging operations should succeed
-      expect(mockWinstonLogger.debug).toHaveBeenCalledWith('Debug message after refresh', expect.any(Object));
-      expect(mockWinstonLogger.info).toHaveBeenCalledWith('Info message after refresh', expect.any(Object));
-      expect(mockWinstonLogger.warn).toHaveBeenCalledWith('Warn message after refresh', expect.any(Object));
-      expect(mockWinstonLogger.error).toHaveBeenCalledWith('Error message after refresh', expect.any(Object));
+      expect(mockWinstonLogger.debug).toHaveBeenCalledWith(
+        'Debug message after refresh',
+        expect.any(Object)
+      );
+      expect(mockWinstonLogger.info).toHaveBeenCalledWith(
+        'Info message after refresh',
+        expect.any(Object)
+      );
+      expect(mockWinstonLogger.warn).toHaveBeenCalledWith(
+        'Warn message after refresh',
+        expect.any(Object)
+      );
+      expect(mockWinstonLogger.error).toHaveBeenCalledWith(
+        'Error message after refresh',
+        expect.any(Object)
+      );
     });
 
     test('should handle credential refresh failure gracefully and continue logging', async () => {

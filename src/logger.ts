@@ -512,6 +512,10 @@ export class TraceRootLogger {
   private credentialsRefreshPromise: Promise<AwsCredentials | null> | null = null;
   private cloudWatchTransport: WinstonCloudWatch | null = null;
 
+  // Child logger support
+  private childContext: Record<string, any> = {};
+  private parentLogger?: TraceRootLogger;
+
   /**
    * Format log message according to Python logging format:
    * %(asctime)s;%(levelname)s;%(service_name)s;%(github_commit_hash)s;%(github_owner)s;%(github_repo_name)s;%(environment)s;%(trace_id)s;%(span_id)s;%(stack_trace)s;%(message)s
@@ -592,8 +596,14 @@ export class TraceRootLogger {
   /**
    * Check if AWS credentials are expired and refresh if needed
    * Returns the current valid credentials or null if no credentials available
+   * Child loggers delegate to root logger for credential management
    */
   private async checkAndRefreshCredentials(): Promise<AwsCredentials | null> {
+    // If this is a child logger, delegate to root logger
+    if (this.parentLogger) {
+      return this.getRootLogger().checkAndRefreshCredentials();
+    }
+
     // If we're in local mode or cloud export is disabled, no credentials needed
     if (
       this.config.local_mode ||
@@ -913,13 +923,16 @@ export class TraceRootLogger {
    * - logger.info({ obj1 }, { obj2 }, 'message') - multiple objects merged, then message
    * - logger.info({ metadata }) - object only, uses default message
    * - logger.info({ obj1 }, { obj2 }) - multiple objects merged, uses default message
+   *
+   * Note: Duplicate properties are preserved with indexed keys (e.g., property_0, property_1)
+   * Child context is merged first, then runtime arguments
    */
   private processLogArgs(
     messageOrObj: string | any,
     ...args: any[]
   ): { message: string; metadata: any } {
     let message: string;
-    let metadata: any = {};
+    let runtimeMetadata: any = {};
     const objects: any[] = [];
     let foundMessage: string | null = null;
 
@@ -948,15 +961,51 @@ export class TraceRootLogger {
       }
     }
 
-    // Merge all collected objects
+    // Merge all collected objects without overriding duplicate properties
     if (objects.length > 0) {
-      metadata = objects.reduce((merged, obj) => ({ ...merged, ...obj }), {});
+      runtimeMetadata = this.mergeObjectsPreservingDuplicates(objects);
     }
 
     // Set the message
     message = foundMessage || 'Log entry';
 
-    return { message, metadata };
+    // Merge child context with runtime metadata
+    // Child context should not be overridable by runtime metadata (pino behavior)
+    const finalMetadata = { ...runtimeMetadata, ...this.childContext };
+
+    return { message, metadata: finalMetadata };
+  }
+
+  /**
+   * Merge objects while preserving duplicate properties by adding indexed suffixes
+   * Example: [{a: 'property'}, {a: 'prop'}] becomes {a_0: 'property', a_1: 'prop'}
+   */
+  private mergeObjectsPreservingDuplicates(objects: any[]): any {
+    const result: any = {};
+    const keyCounters: Record<string, number> = {};
+
+    for (const obj of objects) {
+      for (const [key, value] of Object.entries(obj)) {
+        if (result.hasOwnProperty(key) || keyCounters.hasOwnProperty(key)) {
+          // Key already exists, add indexed suffix
+          const counter = keyCounters[key] || 0;
+          keyCounters[key] = counter + 1;
+
+          // If this is the first duplicate, also rename the original
+          if (counter === 0) {
+            const originalValue = result[key];
+            delete result[key];
+            result[`${key}_0`] = originalValue;
+          }
+
+          result[`${key}_${counter + 1}`] = value;
+        } else {
+          result[key] = value;
+        }
+      }
+    }
+
+    return result;
   }
 
   private addSpanEventDirectly(level: string, message: string, meta?: any): void {
@@ -1237,10 +1286,52 @@ export class TraceRootLogger {
   }
 
   /**
+   * Create a child logger with additional context
+   * Child loggers inherit all parent functionality while adding persistent context
+   *
+   * @param context - Object with key-value pairs to add to all log entries
+   * @returns A new TraceRootLogger instance with merged context
+   */
+  child(context: Record<string, any>): TraceRootLogger {
+    // Create new child logger instance but skip transport setup
+    const childLogger = Object.create(TraceRootLogger.prototype);
+    Object.assign(childLogger, {
+      config: this.config,
+      loggerName: this.loggerName,
+      logger: this.getRootLogger().logger, // Share logger instance with root
+      consoleLogger: this.getRootLogger().consoleLogger, // Share console logger
+      cloudWatchTransport: null, // Child doesn't manage transports
+      credentialsRefreshPromise: null, // Child doesn't manage credentials
+    });
+
+    // Set up child context by merging parent context with new context
+    childLogger.childContext = { ...this.childContext, ...context };
+
+    // Set parent reference for credential delegation
+    childLogger.parentLogger = this;
+
+    return childLogger;
+  }
+
+  /**
+   * Get the root logger for credential management
+   * Walks up the parent chain to find the root logger
+   */
+  private getRootLogger(): TraceRootLogger {
+    return this.parentLogger?.getRootLogger() ?? this;
+  }
+
+  /**
    * Flush all pending log messages to their destinations
    * Only resolves when ALL logs are actually sent - no timeouts
+   * Child loggers delegate to root logger for flushing
    */
   async flush(): Promise<void> {
+    // If this is a child logger, delegate to root logger
+    if (this.parentLogger) {
+      return this.getRootLogger().flush();
+    }
+
     // If cloud export is disabled or we're in local mode, there's nothing to flush
     if (this.config.local_mode || !this.config.enable_log_cloud_export) {
       return Promise.resolve();
