@@ -42,12 +42,37 @@ const main = traceroot.traceFunction(
     // Multiple objects still work
     apiLogger.info({ requestId: 'req123' }, { userId: 'user456' }, 'Complex API operation');
 
+    // Nested context example (similar to req.logtail pattern)
+    const requestLogger = logger.child({
+      context: {
+        req: {
+          id: 'req-789',
+          method: 'POST',
+          path: '/api/users'
+        }
+      }
+    });
+    requestLogger.info({ action: 'validation' }, 'Request validation started');
+    requestLogger.info({ userId: 'user789', status: 'success' }, 'Request processed successfully');
+
+    const requestChildLogger = requestLogger.child({
+      context: {
+        req: {
+          id: 'req-123',
+          method: 'GET',
+          path: '/api/users'
+        }
+      }
+    });
+    requestChildLogger.info({ action: 'validation' }, 'Request validation started');
+
     console.log('\n=== Child Logger Example Complete ===');
     console.log('All log entries above include their respective child contexts automatically!');
     console.log('- authLogger logs include { module: "auth" }');
     console.log('- dbLogger logs include { module: "database" }');
     console.log('- apiLogger logs include { module: "api", version: "1.0" }');
     console.log('- Nested loggers inherit and merge all parent contexts');
+    console.log('- requestLogger logs include nested context object with req details');
     console.log(
       '- Child context is persistent and cannot be overridden by runtime args (pino behavior)'
     );
