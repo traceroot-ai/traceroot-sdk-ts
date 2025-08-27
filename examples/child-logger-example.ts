@@ -48,9 +48,9 @@ const main = traceroot.traceFunction(
         req: {
           id: 'req-789',
           method: 'POST',
-          path: '/api/users'
-        }
-      }
+          path: '/api/users',
+        },
+      },
     });
     requestLogger.info({ action: 'validation' }, 'Request validation started');
     requestLogger.info({ userId: 'user789', status: 'success' }, 'Request processed successfully');
@@ -60,9 +60,9 @@ const main = traceroot.traceFunction(
         req: {
           id: 'req-123',
           method: 'GET',
-          path: '/api/users'
-        }
-      }
+          path: '/api/users',
+        },
+      },
     });
     requestChildLogger.info({ action: 'validation' }, 'Request validation started');
 

@@ -43,7 +43,7 @@ jest.mock('winston', () => {
 jest.mock('winston-cloudwatch', () => {
   return jest.fn().mockImplementation(() => ({
     on: jest.fn(),
-    kthxbye: jest.fn((callback) => callback()), // Mock flush method with immediate callback
+    kthxbye: jest.fn(callback => callback()), // Mock flush method with immediate callback
   }));
 });
 

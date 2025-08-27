@@ -72,7 +72,7 @@ jest.mock('winston-cloudwatch', () => {
     if (testName && testName.includes('transport addition failures')) {
       return {
         on: jest.fn(),
-        kthxbye: jest.fn((callback) => callback()), // Mock flush method with immediate callback
+        kthxbye: jest.fn(callback => callback()), // Mock flush method with immediate callback
       };
     }
 
@@ -83,7 +83,7 @@ jest.mock('winston-cloudwatch', () => {
     }
     return {
       on: jest.fn(),
-      kthxbye: jest.fn((callback) => callback()), // Mock flush method with immediate callback
+      kthxbye: jest.fn(callback => callback()), // Mock flush method with immediate callback
     };
   });
 

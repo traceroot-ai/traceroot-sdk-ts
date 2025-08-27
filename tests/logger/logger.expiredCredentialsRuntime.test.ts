@@ -43,7 +43,7 @@ jest.mock('winston', () => {
 // Mock winston-cloudwatch to simulate different error scenarios
 const mockCloudWatchTransport = {
   on: jest.fn(),
-  kthxbye: jest.fn((callback) => callback()), // Mock flush method with immediate callback
+  kthxbye: jest.fn(callback => callback()), // Mock flush method with immediate callback
 };
 
 jest.mock('winston-cloudwatch', () => {
