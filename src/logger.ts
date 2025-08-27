@@ -656,6 +656,10 @@ export class TraceRootLogger {
 
   /**
    * Recreate CloudWatch transport with new credentials
+   * Uses robust 3-step process:
+   * 1) Add new transport,
+   * 2) Flush old transport,
+   * 3) Remove old transport
    */
   private recreateCloudWatchTransport(credentials: AwsCredentials): void {
     try {
@@ -689,7 +693,6 @@ export class TraceRootLogger {
 
       // Add error handling for the new transport
       newCloudWatchTransport.on('error', (error: any) => {
-        console.error('[ERROR] CloudWatch transport error:', error.message);
         console.error('[ERROR] CloudWatch error details:', error);
         if (error.code) {
           console.error('[ERROR] CloudWatch error code:', error.code);
@@ -699,9 +702,65 @@ export class TraceRootLogger {
         }
       });
 
-      // Add the new transport to the logger
+      // Step 1: Add the new transport to the logger (both transports will be active temporarily)
       try {
         this.logger.add(newCloudWatchTransport);
+        console.log('[TraceRoot] Added new CloudWatch transport with refreshed credentials');
+
+        // Step 2 & 3: Handle old transport cleanup if it exists
+        if (this.cloudWatchTransport) {
+          const oldTransport = this.cloudWatchTransport;
+
+          // Step 2: Flush old transport to ensure all pending logs are sent
+          if (typeof oldTransport.kthxbye === 'function') {
+            // Use winston-cloudwatch's flush method with callback
+            try {
+              oldTransport.kthxbye(() => {
+                // Step 3: Remove old transport after flush completes
+                try {
+                  this.logger.remove(oldTransport);
+                  console.log(
+                    '[TraceRoot] Successfully flushed and removed old CloudWatch transport'
+                  );
+                } catch (removeError: any) {
+                  console.error(
+                    '[TraceRoot] Failed to remove old CloudWatch transport:',
+                    removeError?.message || removeError
+                  );
+                }
+              });
+            } catch (flushError: any) {
+              console.error(
+                '[TraceRoot] Failed to flush old CloudWatch transport, removing directly:',
+                flushError?.message || flushError
+              );
+              // Fallback: remove without flush if flush fails
+              try {
+                this.logger.remove(oldTransport);
+                console.log('[TraceRoot] Removed old CloudWatch transport (flush failed)');
+              } catch (removeError: any) {
+                console.error(
+                  '[TraceRoot] Failed to remove old CloudWatch transport:',
+                  removeError?.message || removeError
+                );
+              }
+            }
+          } else {
+            // Fallback: if no flush method available, remove directly
+            try {
+              this.logger.remove(oldTransport);
+              console.log(
+                '[TraceRoot] Removed old CloudWatch transport (no flush method available)'
+              );
+            } catch (removeError: any) {
+              console.error(
+                '[TraceRoot] Failed to remove old CloudWatch transport:',
+                removeError?.message || removeError
+              );
+            }
+          }
+        }
+
         // Update the reference to the new transport
         this.cloudWatchTransport = newCloudWatchTransport;
         console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
