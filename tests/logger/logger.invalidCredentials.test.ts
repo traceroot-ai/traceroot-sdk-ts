@@ -12,7 +12,8 @@ jest.mock('winston', () => {
     error: jest.fn(),
     add: jest.fn(),
     on: jest.fn(),
-    transports: [],
+    remove: jest.fn(),
+    transports: [], // Add transports array for flush method
   };
 
   const formatMock: any = jest.fn(fn => {
@@ -44,6 +45,7 @@ jest.mock('winston', () => {
 jest.mock('winston-cloudwatch', () => {
   return jest.fn().mockImplementation(() => ({
     on: jest.fn(),
+    kthxbye: jest.fn((callback) => callback()), // Mock flush method with immediate callback
   }));
 });
 
