@@ -66,16 +66,12 @@ const main = traceroot.traceFunction(
     });
     requestChildLogger.info({ action: 'validation' }, 'Request validation started');
 
-    console.log('\n=== Child Logger Example Complete ===');
-    console.log('All log entries above include their respective child contexts automatically!');
-    console.log('- authLogger logs include { module: "auth" }');
-    console.log('- dbLogger logs include { module: "database" }');
-    console.log('- apiLogger logs include { module: "api", version: "1.0" }');
-    console.log('- Nested loggers inherit and merge all parent contexts');
-    console.log('- requestLogger logs include nested context object with req details');
-    console.log(
-      '- Child context is persistent and cannot be overridden by runtime args (pino behavior)'
-    );
+    // Test flush and shutdown with the actual child loggers that were used
+    await authLogger.flush();
+    await dbLogger.flush();
+    await apiLogger.flush();
+    await traceroot.forceFlushLogger();
+    await traceroot.shutdownLogger();
   },
   { spanName: 'childLoggerExample', traceParams: false }
 );
@@ -83,8 +79,6 @@ const main = traceroot.traceFunction(
 main()
   .then(async () => {
     await traceroot.forceFlushTracer();
-    await traceroot.forceFlushLogger();
-    await traceroot.shutdownLogger();
     await traceroot.shutdownTracer();
     process.exit(0);
   })
