@@ -192,9 +192,8 @@ export function forceFlushTracer(): Promise<void> {
     return _tracerProvider
       .forceFlush()
       .then(() => {})
-      .catch((error: any) => {
-        // Log error but don't let it bubble up for fire-and-forget usage
-        console.debug('[TraceRoot] Flush failed (non-critical):', error);
+      .catch(() => {
+        // Silently ignore non-critical flush failures
       });
   }
   return Promise.resolve();

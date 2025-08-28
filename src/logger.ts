@@ -558,8 +558,16 @@ export class TraceRootLogger {
     this.loggerName = name || config.service_name;
 
     try {
+      // Determine the effective log level based on config and export settings
+      let effectiveLevel: string;
+      if (!config.enable_log_console_export && !config.enable_log_cloud_export) {
+        effectiveLevel = 'silent';
+      } else {
+        effectiveLevel = config.log_level;
+      }
+
       this.logger = winston.createLogger({
-        level: !config.enable_log_console_export ? 'silent' : 'debug',
+        level: effectiveLevel,
         format: winston.format.combine(
           winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
           traceCorrelationFormat(config, this.loggerName)(),
@@ -690,7 +698,7 @@ export class TraceRootLogger {
         logGroupName: logGroupName,
         logStreamName: logStreamName,
         awsOptions: awsConfig,
-        level: 'debug',
+        level: this.config.log_level,
         jsonMessage: true,
         uploadRate: 2000,
         errorHandler: (err: any) => {
@@ -844,7 +852,7 @@ export class TraceRootLogger {
       try {
         // Create a separate logger specifically for console output - simple format with just user data
         this.consoleLogger = winston.createLogger({
-          level: 'debug',
+          level: this.config.log_level,
           format: winston.format.combine(
             winston.format.timestamp(),
             winston.format.colorize(),
@@ -916,7 +924,7 @@ export class TraceRootLogger {
         logGroupName: logGroupName,
         logStreamName: logStreamName,
         awsOptions: awsConfig,
-        level: 'debug', // TODO: explicitly set log level
+        level: this.config.log_level,
         jsonMessage: true, // Enable JSON formatting to use our custom formatter
         uploadRate: 1000, // Upload every 1 second
         messageFormatter: (item: any) => this.formatCloudWatchMessage(item),
@@ -1463,16 +1471,30 @@ export function initializeLogger(config: TraceRootConfigImpl): TraceRootLogger {
 
 /**
  * Get the global logger instance or create a new one
+ * @param name Optional logger name (currently unused, reserved for future use)
+ * @param logLevel Optional log level override - if provided, overrides config log level
  */
-export function get_logger(name?: string): TraceRootLogger {
+export function get_logger(
+  name?: string,
+  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
+): TraceRootLogger {
   if (_globalLogger === null) {
     throw new Error('Logger not initialized. Call TraceRoot.init() first.');
   }
 
-  if (name === undefined) {
+  // If no log level override is provided, return the global logger as-is
+  if (logLevel === undefined) {
     return _globalLogger;
   }
-  return _globalLogger;
+
+  // Create a new logger instance with the overridden log level
+  const config = (_globalLogger as any).config as TraceRootConfigImpl;
+  const configWithOverride = {
+    ...config,
+    log_level: logLevel,
+  };
+
+  return TraceRootLogger.create(configWithOverride, name);
 }
 
 /**

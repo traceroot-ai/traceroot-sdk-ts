@@ -37,6 +37,9 @@ export interface TraceRootConfig {
   // Local mode
   local_mode?: boolean;
 
+  // Logging configuration
+  log_level?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
+
   // Internal properties (set during initialization)
   _name?: string;
   _sub_name?: string;
@@ -87,6 +90,7 @@ export class TraceRootConfigImpl implements TraceRootConfig {
   enable_span_cloud_export: boolean = true;
   enable_log_cloud_export: boolean = true;
   local_mode: boolean = false;
+  log_level: 'debug' | 'info' | 'warn' | 'error' | 'silent' = 'debug';
   _name?: string;
   _sub_name?: string;
 
@@ -107,6 +111,7 @@ export class TraceRootConfigImpl implements TraceRootConfig {
     this.enable_log_cloud_export =
       config.enable_log_cloud_export !== undefined ? config.enable_log_cloud_export : true;
     this.local_mode = config.local_mode || false;
+    this.log_level = config.log_level || 'debug';
 
     this._name = this.name;
     this._sub_name = `${this.service_name}-${this.environment}`;
