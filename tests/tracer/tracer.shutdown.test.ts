@@ -25,7 +25,7 @@ describe('Tracer Shutdown and Flush', () => {
 
   afterEach(async () => {
     // Clean shutdown after each test
-    await traceroot.shutdownTracing();
+    await traceroot.shutdownTracer();
   });
 
   describe('forceFlushTracer', () => {
@@ -100,7 +100,7 @@ describe('Tracer Shutdown and Flush', () => {
       testFunction();
 
       // Shutdown synchronously (no await)
-      const shutdownPromise = traceroot.shutdownTracing();
+      const shutdownPromise = traceroot.shutdownTracer();
       expect(shutdownPromise).toBeInstanceOf(Promise);
 
       // Should complete quickly for sync usage
@@ -122,7 +122,7 @@ describe('Tracer Shutdown and Flush', () => {
       expect(result).toBe('async shutdown test');
 
       // Shutdown asynchronously (with await)
-      await traceroot.shutdownTracing();
+      await traceroot.shutdownTracer();
 
       // Should complete successfully
       expect(true).toBe(true);
@@ -139,7 +139,7 @@ describe('Tracer Shutdown and Flush', () => {
       fn2();
 
       // Shutdown should flush all spans
-      await traceroot.shutdownTracing();
+      await traceroot.shutdownTracer();
 
       consoleSpy.mockRestore();
       expect(true).toBe(true);
@@ -147,15 +147,15 @@ describe('Tracer Shutdown and Flush', () => {
 
     test('should handle errors gracefully', async () => {
       // This should not throw even if there are internal errors
-      await expect(traceroot.shutdownTracing()).resolves.toBeUndefined();
+      await expect(traceroot.shutdownTracer()).resolves.toBeUndefined();
     });
 
     test('should be idempotent (safe to call multiple times)', async () => {
       // First shutdown
-      await traceroot.shutdownTracing();
+      await traceroot.shutdownTracer();
 
       // Second shutdown should not throw
-      await expect(traceroot.shutdownTracing()).resolves.toBeUndefined();
+      await expect(traceroot.shutdownTracer()).resolves.toBeUndefined();
     });
   });
 
@@ -167,7 +167,7 @@ describe('Tracer Shutdown and Flush', () => {
 
       // Sync usage - flush then shutdown
       traceroot.forceFlushTracer();
-      traceroot.shutdownTracing();
+      traceroot.shutdownTracer();
 
       setTimeout(() => {
         done();
@@ -183,7 +183,7 @@ describe('Tracer Shutdown and Flush', () => {
 
       // Async usage - flush then shutdown
       await traceroot.forceFlushTracer();
-      await traceroot.shutdownTracing();
+      await traceroot.shutdownTracer();
 
       expect(true).toBe(true);
     });
@@ -192,7 +192,7 @@ describe('Tracer Shutdown and Flush', () => {
   describe('Edge cases', () => {
     test('should handle shutdown without any spans', async () => {
       // Shutdown immediately without creating any spans
-      await expect(traceroot.shutdownTracing()).resolves.toBeUndefined();
+      await expect(traceroot.shutdownTracer()).resolves.toBeUndefined();
     });
 
     test('should handle flush without any spans', async () => {

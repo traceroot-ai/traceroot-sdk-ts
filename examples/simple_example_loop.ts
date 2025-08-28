@@ -48,7 +48,7 @@ runLoop().catch(error => {
 process.on('SIGINT', async () => {
   logger.info('Received SIGINT, shutting down gracefully...');
   await traceroot.forceFlushTracer();
-  await traceroot.shutdownTracing();
+  await traceroot.shutdownTracer();
   await traceroot.forceFlushLogger();
   await traceroot.shutdownLogger();
   process.exit(0);
@@ -57,7 +57,7 @@ process.on('SIGINT', async () => {
 process.on('SIGTERM', async () => {
   logger.info('Received SIGTERM, shutting down gracefully...');
   await traceroot.forceFlushTracer();
-  await traceroot.shutdownTracing();
+  await traceroot.shutdownTracer();
   await traceroot.forceFlushLogger();
   await traceroot.shutdownLogger();
   process.exit(0);
