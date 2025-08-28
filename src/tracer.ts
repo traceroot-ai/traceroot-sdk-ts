@@ -228,7 +228,7 @@ export function forceFlushTracerSync(): void {
  * Shutdown tracing and flush any pending spans.
  * Flushes pending spans AND shuts down the tracer completely.
  */
-export function shutdownTracing(): Promise<void> {
+export function shutdownTracer(): Promise<void> {
   if (_tracerProvider !== null && !_isShuttingDown) {
     _isShuttingDown = true;
     const shutdownPromise = _tracerProvider.shutdown();
@@ -250,12 +250,22 @@ export function shutdownTracing(): Promise<void> {
 }
 
 /**
- * Synchronous version of shutdownTracing that forces process exit.
+ * Shutdown tracing and flush any pending spans.
+ * Flushes pending spans AND shuts down the tracer completely.
+ *
+ * @deprecated Use shutdownTracer() instead. This function will be removed in a future version.
+ */
+export function shutdownTracing(): Promise<void> {
+  return shutdownTracer();
+}
+
+/**
+ * Synchronous version of shutdownTracer that forces process exit.
  * Use this when you want simple sync-style shutdown without dealing with Promises.
  */
-export function shutdownTracingSync(): void {
+export function shutdownTracerSync(): void {
   // Start the async shutdown process
-  const shutdownPromise = shutdownTracing();
+  const shutdownPromise = shutdownTracer();
 
   // For sync usage: schedule process exit after a reasonable delay
   // This ensures cleanup has time to complete while providing sync semantics
@@ -269,6 +279,16 @@ export function shutdownTracingSync(): void {
     .catch((error: any) => {
       void error;
     });
+}
+
+/**
+ * Synchronous version of shutdownTracing that forces process exit.
+ * Use this when you want simple sync-style shutdown without dealing with Promises.
+ *
+ * @deprecated Use shutdownTracerSync() instead. This function will be removed in a future version.
+ */
+export function shutdownTracingSync(): void {
+  return shutdownTracerSync();
 }
 
 // Track if we've already set up process handlers to avoid duplicates

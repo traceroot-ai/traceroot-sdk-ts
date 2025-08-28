@@ -125,7 +125,7 @@ async function main() {
 main()
   .then(async () => {
     await traceroot.forceFlushTracer();
-    await traceroot.shutdownTracing();
+    await traceroot.shutdownTracer();
     await traceroot.forceFlushLogger();
     await traceroot.shutdownLogger();
     process.exit(0);

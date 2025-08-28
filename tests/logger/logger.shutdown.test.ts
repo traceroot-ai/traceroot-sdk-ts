@@ -25,7 +25,7 @@ describe('Logger Flush and Shutdown', () => {
 
   afterEach(async () => {
     // Clean shutdown after each test
-    await traceroot.shutdownTracing();
+    await traceroot.shutdownTracer();
     await traceroot.shutdownLogger();
   });
 
@@ -187,7 +187,7 @@ describe('Logger Flush and Shutdown', () => {
       await traceroot.forceFlushLogger();
 
       // Shutdown both
-      await traceroot.shutdownTracing();
+      await traceroot.shutdownTracer();
       await traceroot.shutdownLogger();
 
       expect(true).toBe(true);

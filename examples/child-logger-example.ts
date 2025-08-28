@@ -85,7 +85,7 @@ main()
     await traceroot.forceFlushTracer();
     await traceroot.forceFlushLogger();
     await traceroot.shutdownLogger();
-    await traceroot.shutdownTracing();
+    await traceroot.shutdownTracer();
     process.exit(0);
   })
   .catch(console.error);

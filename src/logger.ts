@@ -127,8 +127,16 @@ const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string)
                   attributes[`log.${key}`] = value;
                   metadataForSpanAttributes[key] = value;
                 } else if (value !== null && value !== undefined) {
-                  attributes[`log.${key}`] = String(value);
-                  metadataForSpanAttributes[key] = String(value);
+                  // Convert complex types to JSON strings for proper serialization
+                  try {
+                    const jsonValue = JSON.stringify(value);
+                    attributes[`log.${key}`] = jsonValue;
+                    metadataForSpanAttributes[key] = jsonValue;
+                  } catch {
+                    // Fallback to String() if JSON.stringify fails (e.g., circular references)
+                    attributes[`log.${key}`] = String(value);
+                    metadataForSpanAttributes[key] = String(value);
+                  }
                 }
               }
             });
@@ -1122,7 +1130,13 @@ export class TraceRootLogger {
           ) {
             attributes[`log.${key}`] = value;
           } else if (value !== null && value !== undefined) {
-            attributes[`log.${key}`] = String(value);
+            // Convert complex types to JSON strings for proper serialization
+            try {
+              attributes[`log.${key}`] = JSON.stringify(value);
+            } catch {
+              // Fallback to String() if JSON.stringify fails (e.g., circular references)
+              attributes[`log.${key}`] = String(value);
+            }
           }
         });
       }
@@ -1166,8 +1180,13 @@ export class TraceRootLogger {
           // Use a consistent prefix for log metadata attributes
           spanAttributes[`log.metadata.${key}`] = value;
         } else if (value !== null && value !== undefined) {
-          // Convert complex types to strings
-          spanAttributes[`log.metadata.${key}`] = String(value);
+          // Convert complex types to JSON strings for proper serialization
+          try {
+            spanAttributes[`log.metadata.${key}`] = JSON.stringify(value);
+          } catch {
+            // Fallback to String() if JSON.stringify fails (e.g., circular references)
+            spanAttributes[`log.metadata.${key}`] = String(value);
+          }
         }
       });
 

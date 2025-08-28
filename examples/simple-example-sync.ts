@@ -1,5 +1,5 @@
 import * as traceroot from '../src/index';
-import { forceFlushTracerSync, shutdownTracingSync } from '../src/tracer';
+import { forceFlushTracerSync, shutdownTracerSync } from '../src/tracer';
 import { forceFlushLoggerSync, shutdownLoggerSync } from '../src/logger';
 
 const greet = traceroot.traceFunction(
@@ -16,5 +16,5 @@ greet('world');
 // Shutdown the tracer and logger
 forceFlushTracerSync();
 forceFlushLoggerSync();
-shutdownTracingSync();
+shutdownTracerSync();
 shutdownLoggerSync();

@@ -268,9 +268,7 @@ npm install
 npm run build
 npm run format
 npm run lint --fix
-npx prettier --write src
-npx prettier --write tests
-npx prettier --write examples
+npx prettier --write src tests examples
 npx prettier --write [JS-CONFIG-FILE]
 npm run test # Run tests
 npm test -- tests/logger/logger.pathProcessing.test.ts # Run a specific test

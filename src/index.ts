@@ -7,7 +7,7 @@
  * - get_logger() to get a logger instance
  */
 
-import { _initializeTracing, shutdownTracing, forceFlushTracer } from './tracer';
+import { _initializeTracing, shutdownTracing, shutdownTracer, forceFlushTracer } from './tracer';
 import { trace as traceDecorator, traceFunction } from './tracer';
 import { get_logger, initializeLogger, forceFlushLogger, shutdownLogger } from './logger';
 import { TraceRootConfig } from './config';
@@ -115,6 +115,16 @@ export { shutdownLogger };
  *
  * Call this before your application exits to ensure all traces are sent.
  */
+export { shutdownTracer };
+
+/**
+ * Shutdown tracing and flush any pending spans.
+ * Forces immediate shutdown and cleanup to prevent hanging.
+ *
+ * Call this before your application exits to ensure all traces are sent.
+ *
+ * @deprecated Use shutdownTracer() instead. This function will be removed in a future version.
+ */
 export { shutdownTracing };
 
 /**
@@ -138,8 +148,16 @@ export { forceFlushTracerAsync } from './tracer';
 export { forceFlushTracerSync } from './tracer';
 
 /**
+ * Synchronous version of shutdownTracer that forces process exit.
+ * Use this when you want simple sync-style shutdown without dealing with Promises.
+ */
+export { shutdownTracerSync } from './tracer';
+
+/**
  * Synchronous version of shutdownTracing that forces process exit.
  * Use this when you want simple sync-style shutdown without dealing with Promises.
+ *
+ * @deprecated Use shutdownTracerSync() instead. This function will be removed in a future version.
  */
 export { shutdownTracingSync } from './tracer';
 
