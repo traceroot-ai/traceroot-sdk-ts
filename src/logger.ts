@@ -1513,7 +1513,7 @@ export function initializeLogger(config: TraceRootConfigImpl): TraceRootLogger {
  * @param name Optional logger name (currently unused, reserved for future use)
  * @param logLevel Optional log level override - if provided, overrides config log level
  */
-export function get_logger(
+export function getLogger(
   name?: string,
   logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
 ): TraceRootLogger {
@@ -1534,6 +1534,19 @@ export function get_logger(
   };
 
   return TraceRootLogger.create(configWithOverride, name);
+}
+
+/**
+ * Get the global logger instance or create a new one
+ * @param name Optional logger name (currently unused, reserved for future use)
+ * @param logLevel Optional log level override - if provided, overrides config log level
+ * @deprecated Use getLogger() instead. This function will be removed in a future version.
+ */
+export function get_logger(
+  name?: string,
+  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
+): TraceRootLogger {
+  return getLogger(name, logLevel);
 }
 
 /**

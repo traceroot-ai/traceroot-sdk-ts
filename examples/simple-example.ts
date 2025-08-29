@@ -1,6 +1,6 @@
 import * as traceroot from '../src/index';
 
-const logger = traceroot.get_logger();
+const logger = traceroot.getLogger();
 
 async function main() {
   const makeRequest = traceroot.traceFunction(

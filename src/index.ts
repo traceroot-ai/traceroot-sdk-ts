@@ -9,7 +9,13 @@
 
 import { _initializeTracing, shutdownTracing, shutdownTracer, forceFlushTracer } from './tracer';
 import { trace as traceDecorator, traceFunction } from './tracer';
-import { get_logger, initializeLogger, forceFlushLogger, shutdownLogger } from './logger';
+import {
+  get_logger,
+  getLogger,
+  initializeLogger,
+  forceFlushLogger,
+  shutdownLogger,
+} from './logger';
 import { TraceRootConfig } from './config';
 import { TraceOptions } from './types';
 
@@ -90,6 +96,14 @@ export { getActiveSpanInfo } from './tracer';
  * Get a logger instance.
  *
  * @param name Optional logger name
+ */
+export { getLogger };
+
+/**
+ * Get a logger instance.
+ *
+ * @param name Optional logger name
+ * @deprecated Use getLogger() instead. This function will be removed in a future version.
  */
 export { get_logger };
 

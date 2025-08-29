@@ -4,7 +4,7 @@ import { forceFlushLoggerSync, shutdownLoggerSync } from '../src/logger';
 
 const greet = traceroot.traceFunction(
   function greet(name: string): string {
-    const logger = traceroot.get_logger();
+    const logger = traceroot.getLogger();
     logger.info(`Greeting inside traced function: ${name}`);
     return `Hello, ${name}!`;
   },

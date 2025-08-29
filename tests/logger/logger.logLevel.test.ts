@@ -313,10 +313,10 @@ describe('TraceRoot Logger Log Level Configuration', () => {
     });
   });
 
-  describe('get_logger with log level override', () => {
-    test('should override log level when specified in get_logger call', async () => {
+  describe('getLogger with log level override', () => {
+    test('should override log level when specified in getLogger call', async () => {
       // Set up global logger with DEBUG level by using initializeLogger
-      const { initializeLogger, get_logger } = require('../../src/logger');
+      const { initializeLogger, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'debug' as const,
@@ -326,8 +326,8 @@ describe('TraceRoot Logger Log Level Configuration', () => {
       initializeLogger(globalConfig);
 
       // Get logger with WARN level override - should be different instance
-      const overrideLogger = get_logger(undefined, 'warn');
-      const globalLogger = get_logger();
+      const overrideLogger = getLogger(undefined, 'warn');
+      const globalLogger = getLogger();
 
       // This should be a new logger instance, not the global one
       expect(overrideLogger).not.toBe(globalLogger);
@@ -338,7 +338,7 @@ describe('TraceRoot Logger Log Level Configuration', () => {
     });
 
     test('should return global logger when no log level override provided', async () => {
-      const { initializeLogger, get_logger } = require('../../src/logger');
+      const { initializeLogger, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'info' as const,
@@ -348,14 +348,14 @@ describe('TraceRoot Logger Log Level Configuration', () => {
       const globalLogger = initializeLogger(globalConfig);
 
       // Get logger without override
-      const retrievedLogger = get_logger();
+      const retrievedLogger = getLogger();
 
       // Should be the same instance as global logger
       expect(retrievedLogger).toBe(globalLogger);
     });
 
     test('child logger from override logger should inherit override log level', async () => {
-      const { initializeLogger, get_logger } = require('../../src/logger');
+      const { initializeLogger, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'debug' as const,
@@ -365,7 +365,7 @@ describe('TraceRoot Logger Log Level Configuration', () => {
       initializeLogger(globalConfig);
 
       // Get logger with ERROR level override
-      const errorLogger = get_logger(undefined, 'error');
+      const errorLogger = getLogger(undefined, 'error');
       const childLogger = errorLogger.child({ module: 'test' });
 
       // Child should not throw and should work properly

@@ -127,7 +127,7 @@ Then you can use the `traceroot.traceFunction` to trace your functions:
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-const logger = traceroot.get_logger();
+const logger = traceroot.getLogger();
 
 async function main() {
   const greet = traceroot.traceFunction(
@@ -158,7 +158,7 @@ Or just use the decorator such as:
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-const logger = traceroot.get_logger();
+const logger = traceroot.getLogger();
 
 class GreetingService {
   // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
@@ -201,7 +201,7 @@ If you choose to log with metadata, you can search for it in the TraceRoot UI. H
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-const logger = traceroot.get_logger();
+const logger = traceroot.getLogger();
 
 async function main() {
   const makeRequest = traceroot.traceFunction(
