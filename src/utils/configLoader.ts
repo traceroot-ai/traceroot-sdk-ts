@@ -10,7 +10,7 @@ function isEdgeRuntime(): boolean {
 }
 
 // Load config from environment variables for Edge Runtime
-function loadConfigFromEnv(): TraceRootConfigFile {
+export function loadConfigFromEnv(): TraceRootConfigFile {
   return {
     service_name: process.env.TRACEROOT_SERVICE_NAME || '',
     github_owner: process.env.TRACEROOT_GITHUB_OWNER || '',

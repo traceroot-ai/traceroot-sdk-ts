@@ -66,7 +66,7 @@ describe('No Config Files + No Environment Variables', () => {
       'traceroot.config.mjs',
       'traceroot.config.cjs',
       'config.ts',
-      'config.js'
+      'config.js',
     ];
 
     configFiles.forEach(file => {
@@ -128,7 +128,7 @@ describe('No Config Files + No Environment Variables', () => {
         github_repo_name: loadedConfig?.github_repo_name || 'test-repo',
         github_commit_hash: loadedConfig?.github_commit_hash || 'main',
         enable_log_console_export: true, // Force enable console logging for testing
-        log_level: loadedConfig?.log_level || 'debug'
+        log_level: loadedConfig?.log_level || 'debug',
       };
 
       // Create TraceRootConfigImpl instance
@@ -161,7 +161,7 @@ describe('No Config Files + No Environment Variables', () => {
         github_repo_name: 'test-repo',
         github_commit_hash: 'main',
         enable_log_console_export: true,
-        log_level: 'debug'
+        log_level: 'debug',
       });
 
       // Verify the config is set up for console logging
@@ -200,7 +200,7 @@ describe('No Config Files + No Environment Variables', () => {
           enable_log_console_export: true,
           enable_log_cloud_export: false,
           local_mode: true,
-          log_level: 'info'
+          log_level: 'info',
         });
 
         // Set up the global config (simulating TraceRoot.init())
@@ -221,7 +221,6 @@ describe('No Config Files + No Environment Variables', () => {
         expect(combinedOutput).toContain('Test console log message from no-config test');
         expect(combinedOutput).toContain('INFO'); // Check for INFO (with or without color codes)
         expect(combinedOutput).toContain('test-logger');
-
       } finally {
         // Restore original stdout.write
         process.stdout.write = originalWrite;
@@ -234,7 +233,7 @@ describe('No Config Files + No Environment Variables', () => {
         service_name: 'basic-service',
         github_owner: 'basic-owner',
         github_repo_name: 'basic-repo',
-        github_commit_hash: 'main'
+        github_commit_hash: 'main',
       });
 
       // Verify defaults are applied correctly
@@ -255,7 +254,7 @@ describe('No Config Files + No Environment Variables', () => {
         github_commit_hash: 'main',
         enable_log_console_export: true,
         enable_span_console_export: true,
-        log_level: 'info'
+        log_level: 'info',
       });
 
       // Verify console exports are enabled
@@ -263,6 +262,107 @@ describe('No Config Files + No Environment Variables', () => {
       expect(consoleEnabledConfig.enable_span_console_export).toBe(true);
       expect(consoleEnabledConfig.log_level).toBe('info');
       expect(consoleEnabledConfig._sub_name).toBe('console-enabled-service-development');
+    });
+  });
+
+  describe('Auto-initialization Tests', () => {
+    test('should auto-initialize successfully when no config file exists', () => {
+      // Verify clean environment - no config files
+      const configFiles = ['traceroot.config.ts', 'traceroot.config.js', 'config.ts', 'config.js'];
+      configFiles.forEach(file => {
+        expect(existsSync(join(testDir, file))).toBe(false);
+      });
+
+      // Clear module cache to test fresh auto-initialization
+      Object.keys(require.cache).forEach(key => {
+        if (
+          key.includes('src/index') ||
+          key.includes('src/autoInit') ||
+          key.includes('src/tracer') ||
+          key.includes('src/logger')
+        ) {
+          delete require.cache[key];
+        }
+      });
+
+      // Mock console to capture any debug messages
+      const consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation();
+
+      try {
+        // Import autoInitialize function directly to test it
+        const { autoInitialize } = require('../../src/autoInit');
+
+        // Test that autoInitialize returns true even with no config file
+        const result = autoInitialize();
+
+        // Check if there were any error messages that might explain failure
+        const debugCalls = consoleDebugSpy.mock.calls;
+        if (!result) {
+          console.log('Debug calls:', debugCalls);
+          console.log('Auto-initialize failed - investigating...');
+        }
+
+        expect(result).toBe(true);
+      } finally {
+        consoleDebugSpy.mockRestore();
+      }
+    });
+
+    test('should allow getLogger() to work after auto-initialization with no config', () => {
+      // Clear module cache for fresh test
+      Object.keys(require.cache).forEach(key => {
+        if (key.includes('src/') && key.includes('traceroot-sdk-ts/src/')) {
+          delete require.cache[key];
+        }
+      });
+
+      // Import and trigger auto-initialization (this happens automatically on import)
+      const TraceRoot = require('../../src/index');
+
+      // This should NOT throw "Logger not initialized" error anymore
+      expect(() => {
+        const logger = TraceRoot.getLogger();
+        expect(logger).toBeDefined();
+      }).not.toThrow();
+    });
+
+    test('should work in NextJS middleware scenario (no config file, immediate logger use)', async () => {
+      // Simulate NextJS middleware scenario where:
+      // 1. No config file exists
+      // 2. Module is imported and auto-initialization runs
+      // 3. Middleware immediately tries to create logger
+
+      // Clear module cache
+      Object.keys(require.cache).forEach(key => {
+        if (key.includes('src/') && key.includes('traceroot-sdk-ts/src/')) {
+          delete require.cache[key];
+        }
+      });
+
+      // Mock console.error to capture any error messages
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      try {
+        // Import TraceRoot (triggers auto-initialization)
+        const TraceRoot = require('../../src/index');
+
+        // Immediately try to create logger (like middleware would)
+        const logger = TraceRoot.getLogger();
+
+        // Test that logger is functional
+        await logger.info('Test message from simulated middleware');
+
+        // Should not have thrown any errors
+        expect(logger).toBeDefined();
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('Logger not initialized')
+        );
+
+        // The main success criteria is that getLogger() worked without throwing
+        // "Logger not initialized" error, which means auto-initialization succeeded
+      } finally {
+        consoleSpy.mockRestore();
+      }
     });
   });
 
