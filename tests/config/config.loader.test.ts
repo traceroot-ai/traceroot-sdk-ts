@@ -226,11 +226,14 @@ export default config as InvalidTypeNameThatDoesNotExist;
   });
 
   describe('Error Handling', () => {
-    test('should return null for non-existent config file', () => {
+    test('should return environment variables for non-existent config file', () => {
       const nonExistentPath = join(testDir, 'non-existent.config.js');
       const loadedConfig = loadTypescriptConfigSync(nonExistentPath);
 
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should return environment config instead of null
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
 
     test('should handle invalid JavaScript syntax gracefully', () => {
@@ -246,7 +249,10 @@ const config = {
 
       const loadedConfig = loadTypescriptConfigSync(configPath);
 
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should return environment config when syntax error occurs
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
   });
 
@@ -337,8 +343,10 @@ const config: Config = {
 
       const loadedConfig = loadTypescriptConfigSync(configPath);
 
-      // Should fall back gracefully and return null since there's no JS fallback
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should return environment config when TypeScript compilation fails
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
   });
 
