@@ -961,7 +961,46 @@ export class TraceRootLogger {
     }
   }
 
-  private incrementSpanLogCount(attributeName: string): void {
+  /**
+   * Check if a log level should be processed based on the current configuration
+   * Log level hierarchy: debug: 0, info: 1, warn: 2, error: 3, silent: 4
+   */
+  private shouldProcessLogLevel(logLevel: string): boolean {
+    const logLevels: Record<string, number> = {
+      debug: 0,
+      info: 1,
+      warn: 2,
+      error: 3,
+      critical: 3, // Critical maps to error level
+      silent: 4,
+    };
+
+    // Determine the effective log level based on config and export settings
+    let effectiveLevel: string;
+    if (!this.config.enable_log_console_export && !this.config.enable_log_cloud_export) {
+      effectiveLevel = 'silent';
+    } else {
+      effectiveLevel = this.config.log_level;
+    }
+
+    const currentLevelValue = logLevels[effectiveLevel] ?? 0;
+    const requestedLevelValue = logLevels[logLevel] ?? 0;
+
+    // Should process if the requested level is >= current level (and not silent)
+    return requestedLevelValue >= currentLevelValue;
+  }
+
+  private incrementSpanLogCount(attributeName: string, logLevel: string): void {
+    // Only increment if this log level should be processed
+    if (!this.shouldProcessLogLevel(logLevel)) {
+      return;
+    }
+
+    // Only increment if span cloud export is enabled (span attributes need cloud export)
+    if (!this.config.enable_span_cloud_export) {
+      return;
+    }
+
     try {
       const span = otelTrace.getActiveSpan();
       if (span && span.isRecording()) {
@@ -1226,7 +1265,7 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger debug error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_debug_logs');
+      this.incrementSpanLogCount('num_debug_logs', 'debug');
       return;
     }
 
@@ -1237,7 +1276,7 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger debug error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_debug_logs');
+    this.incrementSpanLogCount('num_debug_logs', 'debug');
   }
 
   async info(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1259,7 +1298,7 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger info error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_info_logs');
+      this.incrementSpanLogCount('num_info_logs', 'info');
       return;
     }
 
@@ -1269,7 +1308,7 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger info error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_info_logs');
+    this.incrementSpanLogCount('num_info_logs', 'info');
   }
 
   async warn(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1291,7 +1330,7 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger warn error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_warning_logs');
+      this.incrementSpanLogCount('num_warning_logs', 'warn');
       return;
     }
 
@@ -1302,7 +1341,7 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger warn error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_warning_logs');
+    this.incrementSpanLogCount('num_warning_logs', 'warn');
   }
 
   async error(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1324,7 +1363,7 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger error error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_error_logs');
+      this.incrementSpanLogCount('num_error_logs', 'error');
       return;
     }
 
@@ -1335,7 +1374,7 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger error error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_error_logs');
+    this.incrementSpanLogCount('num_error_logs', 'error');
   }
 
   async critical(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1357,7 +1396,7 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger critical error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_critical_logs');
+      this.incrementSpanLogCount('num_critical_logs', 'critical');
       return;
     }
 
@@ -1368,7 +1407,7 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger critical error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_critical_logs');
+    this.incrementSpanLogCount('num_critical_logs', 'critical');
   }
 
   /**
