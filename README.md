@@ -259,6 +259,7 @@ npx ts-node --transpile-only examples/simple-example-decorator.ts
 npx ts-node --transpile-only examples/example.ts
 npx ts-node --transpile-only examples/example-decorator.ts
 npx ts-node --transpile-only examples/child-logger-example.ts
+npx ts-node --transpile-only examples/log-level-example.ts
 ```
 
 ## Development

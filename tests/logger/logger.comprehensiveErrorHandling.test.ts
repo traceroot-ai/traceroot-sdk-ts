@@ -133,6 +133,7 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
       environment: 'test',
       aws_region: 'us-east-1',
       otlp_endpoint: 'http://localhost:4318',
+      log_level: 'debug',
       _name: 'test-logger',
       _sub_name: 'test-sub-logger',
       token: 'test-token',
