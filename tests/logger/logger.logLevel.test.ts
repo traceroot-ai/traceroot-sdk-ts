@@ -315,15 +315,15 @@ describe('TraceRoot Logger Log Level Configuration', () => {
 
   describe('getLogger with log level override', () => {
     test('should override log level when specified in getLogger call', async () => {
-      // Set up global logger with DEBUG level by using initializeLogger
-      const { initializeLogger, getLogger } = require('../../src/logger');
+      // Set up global logger with DEBUG level by using setGlobalConfig
+      const { setGlobalConfig, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'debug' as const,
       };
 
       // Initialize global logger
-      initializeLogger(globalConfig);
+      setGlobalConfig(globalConfig);
 
       // Get logger with WARN level override - should be different instance
       const overrideLogger = getLogger(undefined, 'warn');
@@ -338,14 +338,15 @@ describe('TraceRoot Logger Log Level Configuration', () => {
     });
 
     test('should return global logger when no log level override provided', async () => {
-      const { initializeLogger, getLogger } = require('../../src/logger');
+      const { setGlobalConfig, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'info' as const,
       };
 
       // Initialize global logger
-      const globalLogger = initializeLogger(globalConfig);
+      setGlobalConfig(globalConfig);
+      const globalLogger = getLogger();
 
       // Get logger without override
       const retrievedLogger = getLogger();
@@ -355,14 +356,14 @@ describe('TraceRoot Logger Log Level Configuration', () => {
     });
 
     test('child logger from override logger should inherit override log level', async () => {
-      const { initializeLogger, getLogger } = require('../../src/logger');
+      const { setGlobalConfig, getLogger } = require('../../src/logger');
       const globalConfig = {
         ...mockConfig,
         log_level: 'debug' as const,
       };
 
       // Initialize global logger
-      initializeLogger(globalConfig);
+      setGlobalConfig(globalConfig);
 
       // Get logger with ERROR level override
       const errorLogger = getLogger(undefined, 'error');

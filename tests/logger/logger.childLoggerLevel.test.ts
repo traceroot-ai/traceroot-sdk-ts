@@ -280,7 +280,7 @@ describe('TraceRoot Child Logger Level Behavior', () => {
       const childLogger = parentLogger.child({ module: 'test' });
 
       // Child logger should not have its own credential refresh promise
-      expect((childLogger as any).credentialsRefreshPromise).toBeNull();
+      expect((childLogger as any).credentialsRefreshPromise).toBeUndefined();
       expect((childLogger as any).parentLogger).toBe(parentLogger);
 
       // Child logging should work through parent's credential management

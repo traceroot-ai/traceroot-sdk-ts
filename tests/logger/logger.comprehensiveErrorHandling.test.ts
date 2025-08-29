@@ -1,4 +1,4 @@
-import { initializeLogger, TraceRootLogger } from '../../src/logger';
+import { getLogger, setGlobalConfig, TraceRootLogger, shutdownLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -117,6 +117,11 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    // Reset winston mock to default behavior
+    const winston = require('winston');
+    winston.createLogger.mockClear();
+    (winston as any).setThrowMode(false); // Default to non-throwing mode
+
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
     consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -140,7 +145,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
     };
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await shutdownLogger();
     consoleErrorSpy.mockRestore();
     consoleLogSpy.mockRestore();
   });
@@ -183,7 +189,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Logger creation should NOT throw even if winston throws
     expect(() => {
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
     }).not.toThrow();
 
     expect(logger).toBeDefined();
@@ -222,7 +229,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Should create fallback logger instead of throwing
     expect(() => {
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
     }).not.toThrow();
 
     expect(logger).toBeDefined();
@@ -259,7 +267,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Logger creation should not throw even if CloudWatch transport creation fails
     expect(() => {
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
     }).not.toThrow();
 
     expect(logger).toBeDefined();
@@ -284,7 +293,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Should handle console logger creation failure gracefully
     expect(() => {
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
     }).not.toThrow();
 
     expect(logger).toBeDefined();
@@ -324,7 +334,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     // Should handle transport addition failure
     expect(() => {
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
     }).not.toThrow();
 
     expect(logger).toBeDefined();
@@ -365,7 +376,8 @@ describe('TraceRoot Logger Comprehensive Error Handling', () => {
 
     try {
       // 1. Logger creation
-      logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
 
       // 2. Intensive logging under adverse conditions
       const intensiveLogging = Array.from({ length: 50 }, (_, i) =>

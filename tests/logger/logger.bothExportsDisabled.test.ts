@@ -3,7 +3,7 @@
  */
 
 import { TraceRootConfigImpl } from '../../src/config';
-import { initializeLogger, shutdownLogger } from '../../src/logger';
+import { getLogger, shutdownLogger, setGlobalConfig } from '../../src/logger';
 
 // Mock the AWS credential fetching
 jest.mock('../../src/api/credential', () => ({
@@ -28,7 +28,8 @@ describe('Both Exports Disabled', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that no console logger is created
     const consoleLogger = (logger as any).consoleLogger;
@@ -67,7 +68,8 @@ describe('Both Exports Disabled', () => {
       local_mode: true,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that no console logger is created
     const consoleLogger = (logger as any).consoleLogger;
@@ -101,7 +103,8 @@ describe('Both Exports Disabled', () => {
       token: 'test-token',
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Mock the private checkAndRefreshCredentials method to spy on it
     const checkAndRefreshCredentialsSpy = jest.spyOn(logger as any, 'checkAndRefreshCredentials');
@@ -130,7 +133,8 @@ describe('Both Exports Disabled', () => {
       token: 'test-token',
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that setupCloudWatchTransport is not called by verifying no CloudWatch transports exist
     const winstonLogger = (logger as any).logger;
@@ -156,7 +160,8 @@ describe('Both Exports Disabled', () => {
       local_mode: true,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Mock the addSpanEventDirectly method to verify it's called
     const addSpanEventDirectlySpy = jest.spyOn(logger as any, 'addSpanEventDirectly');
@@ -184,7 +189,8 @@ describe('Both Exports Disabled', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Capture console output to verify nothing is logged
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
@@ -222,7 +228,8 @@ describe('Both Exports Disabled', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
     const winstonLogger = (logger as any).logger;
 
     // When console export is disabled, the winston logger level should be 'silent'

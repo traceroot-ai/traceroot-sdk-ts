@@ -1,4 +1,4 @@
-import { TraceRootLogger, initializeLogger } from '../../src/logger';
+import { TraceRootLogger, getLogger, setGlobalConfig } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -126,7 +126,8 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
       }
     );
 
-    logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    logger = getLogger();
 
     // Simulate credentials expiring by updating the expiration time
     const expiredCredentials = {
@@ -191,7 +192,8 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
     // Mock credential refresh to also fail
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Unable to refresh token'));
 
-    logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    logger = getLogger();
 
     // This test verifies what happens if winston itself throws errors
     // The question is: does TraceRoot catch these synchronous errors?
@@ -224,7 +226,8 @@ describe('TraceRoot Logger with Runtime Expired Credentials', () => {
 
     (mockConfig as any)._awsCredentials = soonToExpireCredentials;
 
-    logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    logger = getLogger();
 
     // Mock a successful credential refresh
     const newCredentials = {

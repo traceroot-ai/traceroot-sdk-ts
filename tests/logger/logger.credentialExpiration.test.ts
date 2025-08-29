@@ -1,4 +1,4 @@
-import { TraceRootLogger } from '../../src/logger';
+import { TraceRootLogger, shutdownLogger, setGlobalConfig, getLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -105,7 +105,8 @@ describe('TraceRoot Logger Credential Expiration', () => {
 
     (mockConfig as any)._awsCredentials = mockCredentials;
 
-    logger = TraceRootLogger.create(mockConfig);
+    setGlobalConfig(mockConfig);
+    logger = getLogger();
 
     // Get reference to the mocked winston logger
     const winston = require('winston');
@@ -113,6 +114,10 @@ describe('TraceRoot Logger Credential Expiration', () => {
   });
 
   describe('Credential expiration checking', () => {
+    afterEach(async () => {
+      await shutdownLogger();
+    });
+
     test('should not refresh credentials when they are not expired', async () => {
       // Mock fetch to not be called
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -307,7 +312,8 @@ describe('TraceRoot Logger Credential Expiration', () => {
 
       (mockConfig as any)._awsCredentials = expiredCredentials;
 
-      logger = TraceRootLogger.create(mockConfig);
+      setGlobalConfig(mockConfig);
+      logger = getLogger();
 
       await logger.info('Test message');
 

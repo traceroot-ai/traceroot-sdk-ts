@@ -3,7 +3,7 @@
  */
 
 import { TraceRootConfigImpl } from '../../src/config';
-import { initializeLogger, shutdownLogger, forceFlushLogger } from '../../src/logger';
+import { getLogger, shutdownLogger, forceFlushLogger, setGlobalConfig } from '../../src/logger';
 
 // Mock the AWS credential fetching
 jest.mock('../../src/api/credential', () => ({
@@ -27,7 +27,8 @@ describe('Cloud Export Logging', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that CloudWatch transport is not created
     const winstonLogger = (logger as any).logger;
@@ -56,7 +57,7 @@ describe('Cloud Export Logging', () => {
       token: 'test-token',
     });
 
-    initializeLogger(config);
+    setGlobalConfig(config);
 
     // fetchAwsCredentialsSync should not be called during tracer initialization
     // since we're testing in the context where it would be called from tracer
@@ -76,7 +77,8 @@ describe('Cloud Export Logging', () => {
       token: 'test-token',
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Mock the private checkAndRefreshCredentials method to spy on it
     const checkAndRefreshCredentialsSpy = jest.spyOn(logger as any, 'checkAndRefreshCredentials');
@@ -115,7 +117,8 @@ describe('Cloud Export Logging', () => {
       expiration_utc: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
     };
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that CloudWatch transport is created
     const winstonLogger = (logger as any).logger;
@@ -137,7 +140,8 @@ describe('Cloud Export Logging', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is created but CloudWatch transport is not
     const consoleLogger = (logger as any).consoleLogger;
@@ -193,7 +197,8 @@ describe('Cloud Export Logging', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Log some messages
     await logger.info('Test message 1');
@@ -215,7 +220,8 @@ describe('Cloud Export Logging', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Log some messages
     await logger.info('Test message 1');
@@ -237,7 +243,8 @@ describe('Cloud Export Logging', () => {
       local_mode: true,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Log some messages
     await logger.info('Test message 1');
@@ -268,7 +275,8 @@ describe('Cloud Export Logging', () => {
       local_mode: false,
     });
 
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Log some messages
     await logger.info('Test message 1');

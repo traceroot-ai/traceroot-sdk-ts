@@ -3,7 +3,7 @@
  */
 
 import { TraceRootConfigImpl } from '../../src/config';
-import { initializeLogger, shutdownLogger } from '../../src/logger';
+import { getLogger, shutdownLogger, setGlobalConfig } from '../../src/logger';
 
 afterEach(async () => {
   await shutdownLogger();
@@ -24,7 +24,8 @@ describe('Console Export Logging', () => {
     });
 
     // Initialize logger
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is created (access private property for testing)
     const consoleLogger = (logger as any).consoleLogger;
@@ -51,7 +52,8 @@ describe('Console Export Logging', () => {
     });
 
     // Initialize logger
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is created
     const consoleLogger = (logger as any).consoleLogger;
@@ -76,7 +78,8 @@ describe('Console Export Logging', () => {
     });
 
     // Initialize logger
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is created
     const consoleLogger = (logger as any).consoleLogger;
@@ -101,7 +104,8 @@ describe('Console Export Logging', () => {
     });
 
     // Initialize logger
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is NOT created
     const consoleLogger = (logger as any).consoleLogger;
@@ -122,7 +126,8 @@ describe('Console Export Logging', () => {
     });
 
     // Initialize logger
-    const logger = initializeLogger(config);
+    setGlobalConfig(config);
+    const logger = getLogger();
 
     // Check that console logger is created
     const consoleLogger = (logger as any).consoleLogger;

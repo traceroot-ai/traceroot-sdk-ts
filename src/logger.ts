@@ -516,8 +516,7 @@ export class TraceRootLogger {
   private logger: winston.Logger;
   private consoleLogger: winston.Logger | null = null; // Separate logger for console output
   private config: TraceRootConfigImpl;
-  private loggerName: string;
-  private credentialsRefreshPromise: Promise<AwsCredentials | null> | null = null;
+  public loggerName: string;
   private cloudWatchTransport: WinstonCloudWatch | null = null;
 
   // Child logger support
@@ -611,63 +610,12 @@ export class TraceRootLogger {
 
   /**
    * Check if AWS credentials are expired and refresh if needed
-   * Returns the current valid credentials or null if no credentials available
-   * Child loggers delegate to root logger for credential management
+   * Delegates to global credential management to ensure all loggers share the same credentials
    */
   private async checkAndRefreshCredentials(): Promise<AwsCredentials | null> {
-    // If this is a child logger, delegate to root logger
-    if (this.parentLogger) {
-      return this.getRootLogger().checkAndRefreshCredentials();
-    }
-
-    // If we're in local mode or cloud export is disabled, no credentials needed
-    if (
-      this.config.local_mode ||
-      !this.config.enable_span_cloud_export ||
-      !this.config.enable_log_cloud_export
-    ) {
-      return null;
-    }
-
-    // Get current credentials
-    let credentials: AwsCredentials | null = (this.config as any)._awsCredentials || null;
-
-    if (!credentials) {
-      return null;
-    }
-
-    // Check if credentials are expired (30 minutes before actual expiration)
-    // Both now and expiration_utc are in UTC time for accurate comparison
-    // It's ok that now is in local time here
-    const now = new Date();
-    const expirationTime = credentials.expiration_utc; // Already a UTC Date object from API parsing
-    const bufferTime = 30 * 60 * 1000; // 30 minutes in milliseconds
-
-    // If no expiration time, treat credentials as valid
-    if (!expirationTime) {
-      return credentials;
-    }
-
-    // getTime returns the number of milliseconds since January 1, 1970, 00:00:00 UTC
-    if (now.getTime() >= expirationTime.getTime() - bufferTime) {
-      console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
-
-      // If there's already a refresh in progress, wait for it
-      if (this.credentialsRefreshPromise) {
-        return await this.credentialsRefreshPromise;
-      }
-
-      // Start a new refresh
-      this.credentialsRefreshPromise = this.refreshCredentials();
-      try {
-        const newCredentials = await this.credentialsRefreshPromise;
-        return newCredentials;
-      } finally {
-        this.credentialsRefreshPromise = null;
-      }
-    }
-
-    return credentials;
+    // All loggers (including child loggers) delegate to global credential management
+    // This ensures only one refresh happens at a time across all logger instances
+    return await checkAndRefreshGlobalCredentials();
   }
 
   /**
@@ -791,61 +739,6 @@ export class TraceRootLogger {
     }
   }
 
-  /**
-   * Refresh AWS credentials by calling the verify API
-   */
-  private async refreshCredentials(): Promise<AwsCredentials | null> {
-    if (!this.config.token) {
-      console.log('[TraceRoot] No token provided, cannot refresh credentials');
-      return null;
-    }
-
-    try {
-      const apiUrl = `${API_ENDPOINTS.VERIFY_CREDENTIALS}?token=${encodeURIComponent(this.config.token)}`;
-
-      // Use fetch for async HTTP request
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const credentialsData = (await response.json()) as AwsCredentials;
-
-      // Ensure expiration_utc is properly parsed as UTC Date (same logic as in credential.ts)
-      if (credentialsData.expiration_utc) {
-        // Force UTC parsing by ensuring the string has 'Z' suffix
-        const expirationValue = credentialsData.expiration_utc as any; // Raw API response has string
-        const utcString =
-          typeof expirationValue === 'string'
-            ? expirationValue.endsWith('Z')
-              ? expirationValue
-              : expirationValue + 'Z'
-            : expirationValue;
-        credentialsData.expiration_utc = new Date(utcString) as any;
-      }
-
-      // Update config with new credentials
-      this.config._name = credentialsData.hash;
-      this.config.otlp_endpoint = credentialsData.otlp_endpoint;
-      (this.config as any)._awsCredentials = credentialsData;
-
-      // Recreate CloudWatch transport with new credentials
-      this.recreateCloudWatchTransport(credentialsData);
-
-      return credentialsData;
-    } catch (error: any) {
-      console.error('[TraceRoot] Failed to refresh AWS credentials:', error.message);
-      return null;
-    }
-  }
-
   private setupTransports(): void {
     // Console logger for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
@@ -857,9 +750,12 @@ export class TraceRootLogger {
             winston.format.timestamp(),
             winston.format.colorize(),
             winston.format.printf((info: any) => {
-              // Simple console format - just timestamp, level, message, and user metadata
+              // Simple console format - timestamp, level, optional logger name, message, and user metadata
+              const loggerName = info.logger_name || this.loggerName;
+              const shouldIncludeLoggerName = loggerName && loggerName !== this.config.service_name;
+
               const userMeta = Object.keys(info)
-                .filter(key => !['level', 'message', 'timestamp'].includes(key))
+                .filter(key => !['level', 'message', 'timestamp', 'logger_name'].includes(key))
                 .reduce((obj, key) => {
                   obj[key] = info[key];
                   return obj;
@@ -867,7 +763,15 @@ export class TraceRootLogger {
 
               const metaStr =
                 Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
-              return `${info.timestamp} [${info.level}] ${info.message}${metaStr}`;
+              const loggerNameStr = shouldIncludeLoggerName ? ` [${loggerName}]` : '';
+              // Extract level without ANSI color codes for uppercase conversion
+              const rawLevel = info.level.replace(/\x1b\[[0-9;]*m/g, '');
+              const levelStr = rawLevel.toUpperCase();
+              // Reapply colors if they existed
+              const colorizedLevel = info.level.includes('\x1b[')
+                ? info.level.replace(rawLevel, levelStr)
+                : levelStr;
+              return `${info.timestamp} [${colorizedLevel}]${loggerNameStr} ${info.message}${metaStr}`;
             })
           ),
           transports: [
@@ -1256,6 +1160,9 @@ export class TraceRootLogger {
 
     this.addSpanEventDirectly('debug', message, logData);
 
+    // Increment span log count (handles log level filtering internally)
+    this.incrementSpanLogCount('num_debug_logs', 'debug');
+
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('debug', message, metadata);
 
@@ -1265,7 +1172,6 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger debug error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_debug_logs', 'debug');
       return;
     }
 
@@ -1276,7 +1182,6 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger debug error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_debug_logs', 'debug');
   }
 
   async info(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1289,6 +1194,9 @@ export class TraceRootLogger {
 
     this.addSpanEventDirectly('info', message, logData);
 
+    // Increment span log count (handles log level filtering internally)
+    this.incrementSpanLogCount('num_info_logs', 'info');
+
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('info', message, metadata);
 
@@ -1298,7 +1206,6 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger info error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_info_logs', 'info');
       return;
     }
 
@@ -1308,7 +1215,6 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger info error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_info_logs', 'info');
   }
 
   async warn(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1321,6 +1227,9 @@ export class TraceRootLogger {
 
     this.addSpanEventDirectly('warn', message, logData);
 
+    // Increment span log count (handles log level filtering internally)
+    this.incrementSpanLogCount('num_warning_logs', 'warn');
+
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('warn', message, metadata);
 
@@ -1330,7 +1239,6 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger warn error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_warning_logs', 'warn');
       return;
     }
 
@@ -1341,7 +1249,6 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger warn error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_warning_logs', 'warn');
   }
 
   async error(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1354,6 +1261,9 @@ export class TraceRootLogger {
 
     this.addSpanEventDirectly('error', message, logData);
 
+    // Increment span log count (handles log level filtering internally)
+    this.incrementSpanLogCount('num_error_logs', 'error');
+
     // Log to console if enabled (pass only user metadata, not internal logData)
     this.logToConsole('error', message, metadata);
 
@@ -1363,7 +1273,6 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger error error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_error_logs', 'error');
       return;
     }
 
@@ -1374,7 +1283,6 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger error error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_error_logs', 'error');
   }
 
   async critical(messageOrObj: string | any, ...args: any[]): Promise<void> {
@@ -1387,6 +1295,9 @@ export class TraceRootLogger {
 
     this.addSpanEventDirectly('critical', message, logData);
 
+    // Increment span log count (handles log level filtering internally)
+    this.incrementSpanLogCount('num_critical_logs', 'critical');
+
     // Log to console if enabled (use 'error' level for critical in console, pass only user metadata)
     this.logToConsole('error', message, metadata);
 
@@ -1396,7 +1307,6 @@ export class TraceRootLogger {
       } catch (error: any) {
         console.error('[TraceRoot] Logger critical error (local mode):', error?.message || error);
       }
-      this.incrementSpanLogCount('num_critical_logs', 'critical');
       return;
     }
 
@@ -1407,7 +1317,6 @@ export class TraceRootLogger {
     } catch (error: any) {
       console.error('[TraceRoot] Logger critical error (cloud mode):', error?.message || error);
     }
-    this.incrementSpanLogCount('num_critical_logs', 'critical');
   }
 
   /**
@@ -1426,7 +1335,6 @@ export class TraceRootLogger {
       logger: this.getRootLogger().logger, // Share logger instance with root
       consoleLogger: this.getRootLogger().consoleLogger, // Share console logger
       cloudWatchTransport: null, // Child doesn't manage transports
-      credentialsRefreshPromise: null, // Child doesn't manage credentials
     });
 
     // Set up child context by merging parent context with new context
@@ -1497,43 +1405,187 @@ export class TraceRootLogger {
   }
 }
 
-// Global logger instance
-let _globalLogger: TraceRootLogger | null = null;
+// Global configuration instance
+let _globalConfig: TraceRootConfigImpl | null = null;
 
 /**
- * Initialize the global logger instance (synchronous)
+ * Set the global configuration for all loggers
+ * This is called by TraceRoot.init() to set up the shared config
  */
-export function initializeLogger(config: TraceRootConfigImpl): TraceRootLogger {
-  _globalLogger = TraceRootLogger.create(config);
-  return _globalLogger;
+export function setGlobalConfig(config: TraceRootConfigImpl): void {
+  _globalConfig = config;
+}
+
+// Logger registry for module-based instances
+const _loggerRegistry: Map<string, TraceRootLogger> = new Map();
+
+// Default module name for when no module name is provided
+const DEFAULT_MODULE_NAME = '__default__';
+
+// Global credential refresh state to ensure only one refresh happens at a time
+let _credentialsRefreshPromise: Promise<AwsCredentials | null> | null = null;
+
+/**
+ * Global credential refresh function - ensures all loggers share the same credentials
+ * and only one refresh happens at a time across all logger instances
+ */
+async function checkAndRefreshGlobalCredentials(): Promise<AwsCredentials | null> {
+  if (!_globalConfig) {
+    return null;
+  }
+
+  // If we're in local mode or cloud export is disabled, no credentials needed
+  if (
+    _globalConfig.local_mode ||
+    !_globalConfig.enable_span_cloud_export ||
+    !_globalConfig.enable_log_cloud_export
+  ) {
+    return null;
+  }
+
+  // Get current credentials from global config
+  let credentials: AwsCredentials | null = (_globalConfig as any)._awsCredentials || null;
+
+  if (!credentials) {
+    return null;
+  }
+
+  // Check if credentials are expired (30 minutes before actual expiration)
+  const now = new Date();
+  const expirationTime = credentials.expiration_utc;
+  const bufferTime = 30 * 60 * 1000; // 30 minutes in milliseconds
+
+  // If no expiration time, treat credentials as valid
+  if (!expirationTime) {
+    return credentials;
+  }
+
+  if (now.getTime() >= expirationTime.getTime() - bufferTime) {
+    console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
+
+    // If there's already a refresh in progress, wait for it
+    if (_credentialsRefreshPromise) {
+      return await _credentialsRefreshPromise;
+    }
+
+    // Start a new refresh
+    _credentialsRefreshPromise = refreshGlobalCredentials();
+    try {
+      const newCredentials = await _credentialsRefreshPromise;
+      return newCredentials;
+    } finally {
+      _credentialsRefreshPromise = null;
+    }
+  }
+
+  return credentials;
 }
 
 /**
- * Get the global logger instance or create a new one
- * @param name Optional logger name (currently unused, reserved for future use)
+ * Refresh AWS credentials globally - updates the global config so all loggers see new credentials
+ */
+async function refreshGlobalCredentials(): Promise<AwsCredentials | null> {
+  if (!_globalConfig || !_globalConfig.token) {
+    console.log('[TraceRoot] No token provided, cannot refresh credentials');
+    return null;
+  }
+
+  try {
+    const apiUrl = `${API_ENDPOINTS.VERIFY_CREDENTIALS}?token=${encodeURIComponent(_globalConfig.token)}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const credentialsData = (await response.json()) as AwsCredentials;
+
+    // Ensure expiration_utc is properly parsed as UTC Date
+    if (credentialsData.expiration_utc) {
+      const expirationValue = credentialsData.expiration_utc as any;
+      const utcString =
+        typeof expirationValue === 'string'
+          ? expirationValue.endsWith('Z')
+            ? expirationValue
+            : expirationValue + 'Z'
+          : expirationValue;
+      credentialsData.expiration_utc = new Date(utcString) as any;
+    }
+
+    // Update global config with new credentials - all loggers will see this update
+    (_globalConfig as any)._name = credentialsData.hash;
+    (_globalConfig as any).otlp_endpoint = credentialsData.otlp_endpoint;
+    (_globalConfig as any)._awsCredentials = credentialsData;
+
+    // Recreate CloudWatch transports for ALL loggers with new credentials
+    for (const logger of _loggerRegistry.values()) {
+      try {
+        (logger as any).recreateCloudWatchTransport(credentialsData);
+      } catch (error: any) {
+        console.error(
+          '[TraceRoot] Failed to recreate CloudWatch transport for logger:',
+          error?.message || error
+        );
+      }
+    }
+
+    console.log('[TraceRoot] Global credentials refreshed successfully');
+    return credentialsData;
+  } catch (error: any) {
+    console.error('[TraceRoot] Failed to refresh AWS credentials:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get a logger instance for the specified module or default module
+ * @param name Optional module name - if provided, returns a cached logger for that module
  * @param logLevel Optional log level override - if provided, overrides config log level
  */
 export function getLogger(
   name?: string,
   logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
 ): TraceRootLogger {
-  if (_globalLogger === null) {
+  if (_globalConfig === null) {
     throw new Error('Logger not initialized. Call TraceRoot.init() first.');
   }
 
-  // If no log level override is provided, return the global logger as-is
-  if (logLevel === undefined) {
-    return _globalLogger;
+  // Use default module name if none provided (for backward compatibility)
+  const moduleName = name || DEFAULT_MODULE_NAME;
+
+  // Create a cache key that includes both name and logLevel (if provided)
+  const cacheKey = logLevel ? `${moduleName}:${logLevel}` : moduleName;
+
+  // Check if we already have a logger for this module (and log level combination)
+  if (_loggerRegistry.has(cacheKey)) {
+    return _loggerRegistry.get(cacheKey)!;
   }
 
-  // Create a new logger instance with the overridden log level
-  const config = (_globalLogger as any).config as TraceRootConfigImpl;
-  const configWithOverride = {
-    ...config,
-    log_level: logLevel,
-  };
+  // Create a new logger instance for this module
+  // All loggers should reference the same global config object to share credentials
+  // This ensures when credentials are refreshed in one logger, all loggers see the update
+  const configWithOverride = logLevel
+    ? {
+        ..._globalConfig,
+        log_level: logLevel,
+      }
+    : _globalConfig; // Use the global config directly when no override needed
 
-  return TraceRootLogger.create(configWithOverride, name);
+  // For the default module, use the service name as the logger name
+  const loggerName = name || _globalConfig.service_name;
+  const moduleLogger = TraceRootLogger.create(configWithOverride, loggerName);
+
+  // Cache the logger instance
+  _loggerRegistry.set(cacheKey, moduleLogger);
+
+  return moduleLogger;
 }
 
 /**
@@ -1550,55 +1602,44 @@ export function get_logger(
 }
 
 /**
- * Flush all pending logs to their destinations.
+ * Flush all pending logs to their destinations for ALL logger instances.
  * Works for both sync and async usage.
  */
 export function forceFlushLogger(): Promise<void> {
-  if (_globalLogger) {
-    return _globalLogger.flush();
-  } else {
+  if (_loggerRegistry.size === 0) {
     return Promise.resolve();
   }
+
+  // Flush all logger instances in parallel
+  const flushPromises: Promise<void>[] = [];
+  for (const logger of _loggerRegistry.values()) {
+    flushPromises.push(logger.flush());
+  }
+
+  return Promise.all(flushPromises).then(() => {});
 }
 
 /**
- * Shutdown all logger transports and stop background processes.
+ * Shutdown all logger transports and stop background processes for ALL logger instances.
  * Works for both sync and async usage.
  */
 export async function shutdownLogger(): Promise<void> {
-  if (!_globalLogger) {
+  if (_loggerRegistry.size === 0) {
     return;
   }
 
   try {
-    // First flush all logs (this already handles the case where cloud export is disabled)
-    await _globalLogger.flush();
+    // First flush all logs from all logger instances
+    await forceFlushLogger();
   } catch (error) {
     // Ignore flush errors to prevent hanging during shutdown
     console.warn('[TraceRoot] Logger flush failed during shutdown (non-critical):', error);
   }
 
-  // Then shutdown transports
-  const transports = (_globalLogger as any).logger.transports;
-  transports.forEach((transport: any) => {
-    try {
-      if (typeof transport.close === 'function') {
-        transport.close();
-      }
-      if (typeof transport.end === 'function') {
-        transport.end();
-      }
-    } catch (error) {
-      // Ignore shutdown errors
-      void error;
-    }
-  });
-
-  // Also shutdown console logger if it exists
-  const consoleLogger = (_globalLogger as any).consoleLogger;
-  if (consoleLogger) {
-    const consoleTransports = consoleLogger.transports;
-    consoleTransports.forEach((transport: any) => {
+  // Then shutdown transports for all loggers
+  for (const logger of _loggerRegistry.values()) {
+    const transports = (logger as any).logger.transports;
+    transports.forEach((transport: any) => {
       try {
         if (typeof transport.close === 'function') {
           transport.close();
@@ -1611,30 +1652,63 @@ export async function shutdownLogger(): Promise<void> {
         void error;
       }
     });
-    consoleTransports.length = 0;
+
+    // Also shutdown console logger if it exists
+    const consoleLogger = (logger as any).consoleLogger;
+    if (consoleLogger) {
+      const consoleTransports = consoleLogger.transports;
+      consoleTransports.forEach((transport: any) => {
+        try {
+          if (typeof transport.close === 'function') {
+            transport.close();
+          }
+          if (typeof transport.end === 'function') {
+            transport.end();
+          }
+        } catch (error) {
+          // Ignore shutdown errors
+          void error;
+        }
+      });
+      consoleTransports.length = 0;
+    }
+
+    // Clear transport arrays
+    transports.length = 0;
   }
 
   // Clear everything
-  transports.length = 0;
-  _globalLogger = null;
+  _globalConfig = null;
+  _loggerRegistry.clear();
 }
 
 /**
- * Synchronous version of forceFlushLogger.
+ * Synchronous version of forceFlushLogger for ALL logger instances.
  * For console transports, uses a blocking wait to ensure logs appear in sync contexts.
  */
 export function forceFlushLoggerSync(): void {
-  if (!_globalLogger) {
+  if (_loggerRegistry.size === 0) {
+    return;
+  }
+
+  // Check configuration from global config
+  if (!_globalConfig) {
     return;
   }
 
   // If cloud export is disabled, there's nothing to flush asynchronously
-  if (
-    (_globalLogger as any).config.local_mode ||
-    !(_globalLogger as any).config.enable_log_cloud_export
-  ) {
+  if (_globalConfig.local_mode || !_globalConfig.enable_log_cloud_export) {
     // For console logger in sync contexts, give it a small delay to ensure output appears
-    if ((_globalLogger as any).consoleLogger) {
+    // Check if any logger has a console logger
+    let hasConsoleLogger = false;
+    for (const logger of _loggerRegistry.values()) {
+      if ((logger as any).consoleLogger) {
+        hasConsoleLogger = true;
+        break;
+      }
+    }
+
+    if (hasConsoleLogger) {
       const start = Date.now();
       while (Date.now() - start < 100) {
         // Brief blocking delay for console output
@@ -1643,11 +1717,19 @@ export function forceFlushLoggerSync(): void {
     return;
   }
 
-  const transports = (_globalLogger as any).logger.transports;
-  const hasConsoleTransport = transports.some((t: any) => t.constructor.name === 'Console');
-  const hasCloudWatchTransport = transports.some(
-    (t: any) => t.constructor.name === 'WinstonCloudWatch'
-  );
+  // Check if any logger has console or CloudWatch transports
+  let hasConsoleTransport = false;
+  let hasCloudWatchTransport = false;
+
+  for (const logger of _loggerRegistry.values()) {
+    const transports = (logger as any).logger.transports;
+    if (transports.some((t: any) => t.constructor.name === 'Console')) {
+      hasConsoleTransport = true;
+    }
+    if (transports.some((t: any) => t.constructor.name === 'WinstonCloudWatch')) {
+      hasCloudWatchTransport = true;
+    }
+  }
 
   if (hasConsoleTransport) {
     // For console transports in sync contexts, we need to wait for the async logging to complete

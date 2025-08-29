@@ -1,4 +1,4 @@
-import { TraceRootLogger } from '../../src/logger';
+import { TraceRootLogger, setGlobalConfig, getLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -133,7 +133,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const validCredentials = createCredentials(45 * 60 * 1000); // 45 minutes from now
       (mockConfig as any)._awsCredentials = validCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       // Mock fetch to detect if it's called
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -161,7 +162,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const expiringSoonCredentials = createCredentials(20 * 60 * 1000); // 20 minutes from now
       (mockConfig as any)._awsCredentials = expiringSoonCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       // Mock successful credential refresh
       const newCredentials = {
@@ -204,7 +206,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const initialCredentials = createCredentials(45 * 60 * 1000); // 45 minutes from now
       (mockConfig as any)._awsCredentials = initialCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       // First call should not trigger refresh
       await logger.info('First message with valid credentials');
@@ -256,7 +259,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const expiredCredentials = createCredentials(-10 * 60 * 1000); // 10 minutes ago
       (mockConfig as any)._awsCredentials = expiredCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       // Mock successful credential refresh
       const freshCredentials = {
@@ -323,7 +327,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const expiredCredentials = createCredentials(-5 * 60 * 1000); // 5 minutes ago
       (mockConfig as any)._awsCredentials = expiredCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       // Mock credential refresh failure
       (global.fetch as jest.Mock).mockRejectedValue(new Error('API temporarily unavailable'));
@@ -363,7 +368,8 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
       const boundaryCredentials = createCredentials(30 * 60 * 1000); // exactly 30 minutes from now
       (mockConfig as any)._awsCredentials = boundaryCredentials;
 
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
 
       const refreshedCredentials = {
         aws_access_key_id: 'boundary-access-key',

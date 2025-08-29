@@ -18,8 +18,16 @@ const main = traceroot.traceFunction(
       log_level: 'debug', // Explicit debug level
     });
 
+    const defaultLogger = traceroot.getLogger();
+    console.log('Default level logger - should only show error and critical:');
+    defaultLogger.debug('🔴 DEBUG message - should NOT appear');
+    defaultLogger.info('🔴 INFO message - should NOT appear');
+    defaultLogger.warn('🔴 WARN message - should NOT appear');
+    defaultLogger.error('🟢 ERROR message - should appear');
+    defaultLogger.critical('🟢 CRITICAL message - should appear');
+
     const debugLogger = traceroot.getLogger('debug-logger');
-    console.log('Debug level logger - should show all levels:');
+    console.log('\nDebug level logger - should show all levels:');
     debugLogger.debug('🟢 DEBUG message - should appear');
     debugLogger.info('🟢 INFO message - should appear');
     debugLogger.warn('🟢 WARN message - should appear');
@@ -69,12 +77,10 @@ const main = traceroot.traceFunction(
 
 main()
   .then(async () => {
-    console.log('\n=== Cleanup ===');
     await traceroot.forceFlushTracer();
     await traceroot.forceFlushLogger();
     await traceroot.shutdownLogger();
     await traceroot.shutdownTracer();
-    console.log('Example complete!');
     process.exit(0);
   })
   .catch(console.error);

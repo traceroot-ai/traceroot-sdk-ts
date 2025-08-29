@@ -25,7 +25,7 @@ export function autoInitialize(): boolean {
 
     if (shouldAutoInit) {
       const { _initializeTracing, getConfig } = require('./tracer');
-      const { initializeLogger } = require('./logger');
+      const { setGlobalConfig } = require('./logger');
 
       // Initialize tracer
       _initializeTracing(configResult.config);
@@ -33,14 +33,7 @@ export function autoInitialize(): boolean {
       // Initialize logger after tracer to avoid circular dependency
       const configInstance = getConfig();
       if (configInstance) {
-        const logger = initializeLogger(configInstance);
-
-        // Verify the logger actually has transports before completing init
-        const transportCount = (logger as any).logger.transports.length;
-
-        if (transportCount === 0) {
-          console.warn('[TraceRoot] Logger has no transports - this may indicate a setup issue');
-        }
+        setGlobalConfig(configInstance);
       }
       return true;
     }

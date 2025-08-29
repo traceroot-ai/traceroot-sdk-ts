@@ -1,4 +1,4 @@
-import { initializeLogger } from '../../src/logger';
+import { getLogger, shutdownLogger, setGlobalConfig } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 import * as credential from '../../src/api/credential';
 import * as tracer from '../../src/tracer';
@@ -99,7 +99,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     };
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await shutdownLogger();
     consoleErrorSpy.mockRestore();
     consoleLogSpy.mockRestore();
   });
@@ -110,7 +111,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
 
     // Creating logger should NOT throw an error even with invalid credentials
     expect(() => {
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
       expect(logger).toBeDefined();
     }).not.toThrow();
 
@@ -137,7 +139,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     // Mock fetch to reject (simulating network error or invalid token)
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Unauthorized: Invalid token'));
 
-    const logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    const logger = getLogger();
 
     // Logging operations should NOT throw errors even when credential refresh fails
     await expect(logger.debug('Test debug message')).resolves.not.toThrow();
@@ -186,7 +189,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
       json: jest.fn().mockResolvedValue({ error: 'Invalid token' }),
     });
 
-    const logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    const logger = getLogger();
 
     // Logging operations should NOT throw errors
     await expect(logger.info('Test message with invalid credentials')).resolves.not.toThrow();
@@ -215,7 +219,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
 
     (mockConfig as any)._awsCredentials = validCredentials;
 
-    const logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    const logger = getLogger();
 
     // Logging should NOT throw errors even when CloudWatch transport might fail
     // The main point is that authentication errors are handled gracefully
@@ -245,7 +250,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
     // Mock fetch to consistently fail
     (global.fetch as jest.Mock).mockRejectedValue(new Error('Network timeout'));
 
-    const logger = initializeLogger(mockConfig);
+    setGlobalConfig(mockConfig);
+    const logger = getLogger();
 
     // Multiple logging operations should all succeed without throwing
     const loggingPromises = [
@@ -283,7 +289,8 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
 
     let threwError = false;
     try {
-      const logger = initializeLogger(mockConfig);
+      setGlobalConfig(mockConfig);
+      const logger = getLogger();
       await logger.info('This should not throw even with no credentials');
       await logger.error('This should not throw even with no credentials');
     } catch (error) {

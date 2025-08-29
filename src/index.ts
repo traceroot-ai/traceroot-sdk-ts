@@ -9,13 +9,7 @@
 
 import { _initializeTracing, shutdownTracing, shutdownTracer, forceFlushTracer } from './tracer';
 import { trace as traceDecorator, traceFunction } from './tracer';
-import {
-  get_logger,
-  getLogger,
-  initializeLogger,
-  forceFlushLogger,
-  shutdownLogger,
-} from './logger';
+import { get_logger, getLogger, forceFlushLogger, shutdownLogger, setGlobalConfig } from './logger';
 import { TraceRootConfig } from './config';
 import { TraceOptions } from './types';
 
@@ -31,18 +25,12 @@ export const VERSION = '0.0.1';
 export function init(config?: Partial<TraceRootConfig>): void {
   _initializeTracing(config);
 
-  // Initialize logger after tracer to avoid circular dependency
+  // Set up logger global config directly from tracer config
   const { getConfig } = require('./tracer');
   const configInstance = getConfig();
   if (configInstance) {
-    const logger = initializeLogger(configInstance);
-
-    // Verify the logger actually has transports before completing init
-    const transportCount = (logger as any).logger.transports.length;
-
-    if (transportCount === 0) {
-      console.warn('[WARNING] Logger has no transports - this may indicate a setup issue');
-    }
+    // Set the global config for logger directly
+    setGlobalConfig(configInstance);
   }
 }
 
