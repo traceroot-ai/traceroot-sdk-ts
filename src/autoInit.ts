@@ -14,8 +14,23 @@ export function autoInitialize(): boolean {
     const configResult = findAndLoadConfigSync();
 
     if (!configResult) {
-      console.debug('[TraceRoot] No config file found, skipping auto-initialization');
-      return false; // No config found
+      console.debug('[TraceRoot] No config file found, initializing with default configuration');
+      // Load default configuration from environment variables
+      const { loadConfigFromEnv } = require('./utils/configLoader');
+      const defaultConfig = loadConfigFromEnv();
+
+      const { _initializeTracing, getConfig } = require('./tracer');
+      const { setGlobalConfig } = require('./logger');
+
+      // Initialize tracer with default config from environment variables
+      _initializeTracing(defaultConfig);
+
+      // Initialize logger after tracer to avoid circular dependency
+      const configInstance = getConfig();
+      if (configInstance) {
+        setGlobalConfig(configInstance);
+      }
+      return true;
     }
 
     const { configFile } = configResult;
@@ -40,7 +55,7 @@ export function autoInitialize(): boolean {
 
     return false;
   } catch (error) {
-    void error;
+    console.debug('[TraceRoot] Auto-initialization failed:', error);
     return false;
   }
 }
