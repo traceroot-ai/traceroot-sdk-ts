@@ -1,7 +1,47 @@
-import { existsSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 import { TraceRootConfigFile } from '../config';
+
+// Edge Runtime detection
+function isEdgeRuntime(): boolean {
+  return (
+    typeof (globalThis as any).EdgeRuntime !== 'undefined' || process.env.NEXT_RUNTIME === 'edge'
+  );
+}
+
+// Load config from environment variables for Edge Runtime
+function loadConfigFromEnv(): TraceRootConfigFile {
+  return {
+    service_name: process.env.TRACEROOT_SERVICE_NAME || '',
+    github_owner: process.env.TRACEROOT_GITHUB_OWNER || '',
+    github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || '',
+    github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'main',
+    token: process.env.TRACEROOT_TOKEN || '',
+    name: process.env.TRACEROOT_NAME,
+    aws_region: process.env.TRACEROOT_AWS_REGION,
+    otlp_endpoint: process.env.TRACEROOT_OTLP_ENDPOINT,
+    environment: process.env.TRACEROOT_ENVIRONMENT,
+    enable_span_console_export: process.env.TRACEROOT_ENABLE_SPAN_CONSOLE_EXPORT === 'true',
+    enable_log_console_export: process.env.TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT === 'true',
+    enable_span_cloud_export: process.env.TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT !== 'false', // default true
+    enable_log_cloud_export: process.env.TRACEROOT_ENABLE_LOG_CLOUD_EXPORT !== 'false', // default true
+    local_mode: process.env.TRACEROOT_LOCAL_MODE === 'true',
+    log_level: (process.env.TRACEROOT_LOG_LEVEL as any) || 'debug',
+  };
+}
+
+// Edge Runtime compatible fs functions
+function existsSync(path: string): boolean {
+  if (isEdgeRuntime()) {
+    return false;
+  }
+  try {
+    const fs = require('fs');
+    return fs.existsSync(path);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Check if TypeScript compiler is available
@@ -98,8 +138,14 @@ export async function loadTypescriptConfig(
  * Finds a configuration file in the project root
  * Tries TypeScript first, then falls back to JavaScript alternatives
  * Uses multiple strategies to handle different environments (including Turbopack)
+ * In Edge Runtime, returns null to trigger env var loading
  */
 export function findTypescriptConfig(): string | null {
+  // In Edge Runtime, skip file-based config loading
+  if (isEdgeRuntime()) {
+    return null;
+  }
+
   const configNames = [
     'traceroot.config.ts',
     'traceroot.config.js',
@@ -143,10 +189,18 @@ export function findTypescriptConfig(): string | null {
 /**
  * Loads and executes a configuration file (synchronous)
  * Tries TypeScript first, falls back to JavaScript if TypeScript fails
+ * In Edge Runtime, loads from environment variables
+ * Falls back to environment variables when file loading fails in any environment
  */
-export function loadTypescriptConfigSync(configPath: string): TraceRootConfigFile | null {
-  if (!existsSync(configPath)) {
-    return null;
+export function loadTypescriptConfigSync(configPath: string | null): TraceRootConfigFile | null {
+  // In Edge Runtime, load from environment variables immediately
+  if (isEdgeRuntime()) {
+    return loadConfigFromEnv();
+  }
+
+  // If no config path provided or file doesn't exist, try fallback strategies
+  if (!configPath || !existsSync(configPath)) {
+    return tryJavaScriptFallback(); // This will eventually fallback to env vars
   }
 
   const isTypeScript = configPath.endsWith('.ts');
@@ -214,7 +268,8 @@ export function loadTypescriptConfigSync(configPath: string): TraceRootConfigFil
       }
     }
 
-    return null;
+    // For JavaScript files that failed to load, also try fallback
+    return tryJavaScriptFallback();
   }
 }
 
@@ -259,32 +314,48 @@ function loadTypeScriptManually(configPath: string): TraceRootConfigFile | null 
 
 /**
  * Helper function to try loading JavaScript config alternatives
+ * Falls back to environment variables when all file-based loading fails
  */
 export function tryJavaScriptFallback(): TraceRootConfigFile | null {
+  // In Edge Runtime, load from environment variables immediately
+  if (isEdgeRuntime()) {
+    return loadConfigFromEnv();
+  }
+
   // Strategy 1: Try environment variable first
   try {
     const envConfigPath = process.env.TRACEROOT_CONFIG_PATH;
     if (envConfigPath && envConfigPath.trim() !== '' && existsSync(envConfigPath)) {
-      return loadJavaScriptConfig(envConfigPath);
+      const result = loadJavaScriptConfig(envConfigPath);
+      if (result) {
+        return result;
+      }
     }
   } catch (error) {
     console.warn(`Failed to load config from TRACEROOT_CONFIG_PATH: ${error}`);
   }
 
   // Strategy 2: Try current working directory
-  const currentPath = process.cwd();
-  const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
+  try {
+    const currentPath = process.cwd();
+    const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
 
-  for (const configName of jsConfigNames) {
-    const configPath = join(currentPath, configName);
-    if (existsSync(configPath)) {
-      const result = loadJavaScriptConfig(configPath);
-      if (result) {
-        return result;
+    for (const configName of jsConfigNames) {
+      const configPath = join(currentPath, configName);
+      if (existsSync(configPath)) {
+        const result = loadJavaScriptConfig(configPath);
+        if (result) {
+          return result;
+        }
       }
     }
+  } catch (error) {
+    console.warn(`Failed to load config from current directory: ${error}`);
   }
-  return null;
+
+  // Strategy 3: Universal fallback to environment variables when all file loading fails
+  console.info('[TraceRoot] No config files found, attempting to load from environment variables');
+  return loadConfigFromEnv();
 }
 
 /**

@@ -86,9 +86,9 @@ export class TraceRootConfigImpl implements TraceRootConfig {
   otlp_endpoint: string = 'http://localhost:4318/v1/traces';
   environment: string = 'development';
   enable_span_console_export: boolean = false;
-  enable_log_console_export: boolean = false;
-  enable_span_cloud_export: boolean = true;
-  enable_log_cloud_export: boolean = true;
+  enable_log_console_export: boolean = true;
+  enable_span_cloud_export: boolean = false;
+  enable_log_cloud_export: boolean = false;
   local_mode: boolean = false;
   log_level: 'debug' | 'info' | 'warn' | 'error' | 'silent' = 'debug';
   _name?: string;

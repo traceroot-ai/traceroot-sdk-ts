@@ -268,7 +268,7 @@ module.exports = config;
       expect(loadedConfig?.github_owner).toBe('fallback-org');
     });
 
-    test('should return null when both environment variable and directory search fail', () => {
+    test('should return environment variables when both environment variable and directory search fail', () => {
       // Set environment variable to non-existent file
       process.env.TRACEROOT_CONFIG_PATH = '/non/existent/path/config.js';
 
@@ -276,7 +276,10 @@ module.exports = config;
 
       const loadedConfig = tryJavaScriptFallback();
 
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should now return environment config instead of null
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
 
     test('should prioritize environment variable over directory files', () => {
@@ -335,8 +338,10 @@ const config = {
 
       const loadedConfig = tryJavaScriptFallback();
 
-      // Should return null due to syntax error
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should return environment config when file has syntax error
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
 
     test('should handle environment variable pointing to directory instead of file', () => {
@@ -348,8 +353,10 @@ const config = {
 
       const loadedConfig = tryJavaScriptFallback();
 
-      // Should return null since it's a directory, not a file
-      expect(loadedConfig).toBeNull();
+      // With universal fallback, should return environment config when path is directory
+      expect(loadedConfig).not.toBeNull();
+      expect(loadedConfig?.service_name).toBe(''); // Empty string default
+      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
     });
 
     test('should handle empty environment variable gracefully', () => {
