@@ -268,7 +268,7 @@ describe('Span Cloud Export Configuration', () => {
       expect(config?.enable_log_console_export).toBe(true);
 
       // Test that logger still works for console export
-      const logger = traceroot.get_logger();
+      const logger = traceroot.getLogger();
       await expect(logger.info('Test message')).resolves.not.toThrow();
     });
   });

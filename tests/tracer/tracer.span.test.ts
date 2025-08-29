@@ -76,7 +76,7 @@ describe('Tracer Span Helper Functions', () => {
 
       // Test through a traced function that logs
       const testFn = traceroot.traceFunction(function testFunction() {
-        const logger = traceroot.get_logger();
+        const logger = traceroot.getLogger();
         logger.info('test message 1');
         logger.error('test message 2');
         return 'success';
@@ -185,7 +185,7 @@ describe('Tracer Span Helper Functions', () => {
       const testError = new Error('Error with logs');
 
       const testFn = traceroot.traceFunction(function testFunction() {
-        const logger = traceroot.get_logger();
+        const logger = traceroot.getLogger();
         logger.info('Before error');
         logger.warn('Warning message');
         throw testError;
@@ -198,7 +198,7 @@ describe('Tracer Span Helper Functions', () => {
       const testError = new Error('Async error with logs');
 
       const testFn = traceroot.traceFunction(async function testAsyncFunction() {
-        const logger = traceroot.get_logger();
+        const logger = traceroot.getLogger();
         logger.info('Async before error');
         await new Promise(resolve => setTimeout(resolve, 10));
         logger.error('Async error log');
@@ -243,7 +243,7 @@ describe('Tracer Span Helper Functions', () => {
 
       const outerFn = traceroot.traceFunction(
         async function outerFunction(value: number) {
-          const logger = traceroot.get_logger();
+          const logger = traceroot.getLogger();
           logger.info('Starting outer function');
 
           const doubled = innerFn(value);
@@ -269,7 +269,7 @@ describe('Tracer Span Helper Functions', () => {
 
       const outerFn = traceroot.traceFunction(
         function outerFunction() {
-          const logger = traceroot.get_logger();
+          const logger = traceroot.getLogger();
           logger.info('Before calling inner function');
           return innerFn();
         },

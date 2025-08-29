@@ -3,7 +3,7 @@ import { forceFlushTracer, shutdownTracer } from '../src/tracer';
 import { forceFlushLogger, shutdownLogger } from '../src/logger';
 
 class TraceRootExample {
-  private logger = traceroot.get_logger();
+  private logger = traceroot.getLogger();
 
   // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
   @traceroot.trace()

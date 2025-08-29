@@ -1,7 +1,7 @@
 import * as traceroot from '../src/index';
 
 class TraceRootExample {
-  private logger = traceroot.get_logger();
+  private logger = traceroot.getLogger();
   constructor() {
     this.processData = traceroot.traceFunction(this.processData.bind(this));
     this.delay = traceroot.traceFunction(this.delay.bind(this), { spanName: 'delay_execution' });

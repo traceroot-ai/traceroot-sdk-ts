@@ -18,7 +18,7 @@ const main = traceroot.traceFunction(
       log_level: 'debug', // Explicit debug level
     });
 
-    const debugLogger = traceroot.get_logger('debug-logger');
+    const debugLogger = traceroot.getLogger('debug-logger');
     console.log('Debug level logger - should show all levels:');
     debugLogger.debug('🟢 DEBUG message - should appear');
     debugLogger.info('🟢 INFO message - should appear');
@@ -28,7 +28,7 @@ const main = traceroot.traceFunction(
 
     console.log('\n--- Test 2: Warn Level Override ---');
     // Get logger with WARN level override
-    const warnLogger = traceroot.get_logger('warn-logger', 'warn');
+    const warnLogger = traceroot.getLogger('warn-logger', 'warn');
     console.log('Warn level logger - should only show warn, error, and critical:');
     warnLogger.debug('🔴 DEBUG message - should NOT appear');
     warnLogger.info('🔴 INFO message - should NOT appear');
@@ -38,7 +38,7 @@ const main = traceroot.traceFunction(
 
     console.log('\n--- Test 3: Error Level Override ---');
     // Get logger with ERROR level override
-    const errorLogger = traceroot.get_logger('error-logger', 'error');
+    const errorLogger = traceroot.getLogger('error-logger', 'error');
     console.log('Error level logger - should only show error and critical:');
     errorLogger.debug('🔴 DEBUG message - should NOT appear');
     errorLogger.info('🔴 INFO message - should NOT appear');
@@ -55,7 +55,7 @@ const main = traceroot.traceFunction(
     childLogger.error('🟢 Child ERROR - should appear with context');
 
     console.log('\n--- Test 5: Silent Level ---');
-    const silentLogger = traceroot.get_logger('silent-logger', 'silent');
+    const silentLogger = traceroot.getLogger('silent-logger', 'silent');
     console.log('Silent logger - nothing should appear below:');
     silentLogger.debug('🔴 Silent DEBUG - should NOT appear');
     silentLogger.info('🔴 Silent INFO - should NOT appear');

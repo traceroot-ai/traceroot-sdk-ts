@@ -1,6 +1,6 @@
 import * as traceroot from '../src/index';
 
-const logger = traceroot.get_logger();
+const logger = traceroot.getLogger();
 
 class GreetingService {
   // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime

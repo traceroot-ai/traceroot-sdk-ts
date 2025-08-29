@@ -3,7 +3,7 @@ import * as traceroot from '../src/index';
 const main = traceroot.traceFunction(
   async function main() {
     // Get the main logger
-    const logger = traceroot.get_logger();
+    const logger = traceroot.getLogger();
     logger.info('Main logger initialized');
 
     // Create child loggers with different contexts
