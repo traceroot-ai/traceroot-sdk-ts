@@ -1,6 +1,6 @@
 /**
  * Test suite for scenarios with no config files and no environment variables
- * 
+ *
  * This test ensures that:
  * 1. No config.ts/js files are available in the project root
  * 2. No environment variables are set
@@ -62,7 +62,7 @@ describe('No Config Files + No Environment Variables', () => {
     // Clean up any config files that might have been created during tests
     const configFiles = [
       'traceroot.config.ts',
-      'traceroot.config.js', 
+      'traceroot.config.js',
       'traceroot.config.mjs',
       'traceroot.config.cjs',
       'config.ts',
@@ -118,7 +118,7 @@ describe('No Config Files + No Environment Variables', () => {
     test('should create TraceRootConfigImpl with minimal required fields and enable console logging', () => {
       // Load config with no files and no env vars
       const loadedConfig = loadTypescriptConfigSync(null);
-      
+
       expect(loadedConfig).not.toBeNull();
 
       // Create minimal config for TraceRootConfigImpl to work
@@ -153,12 +153,12 @@ describe('No Config Files + No Environment Variables', () => {
 
       // Load config (will use environment variable defaults)
       const loadedConfig = loadTypescriptConfigSync(null);
-      
+
       // Create a working config with console logging enabled
       const workingConfig = new TraceRootConfigImpl({
         service_name: 'console-test-service',
         github_owner: 'test-owner',
-        github_repo_name: 'test-repo', 
+        github_repo_name: 'test-repo',
         github_commit_hash: 'main',
         enable_log_console_export: true,
         log_level: 'debug'
@@ -168,7 +168,7 @@ describe('No Config Files + No Environment Variables', () => {
       expect(workingConfig.enable_log_console_export).toBe(true);
       expect(workingConfig.log_level).toBe('debug');
       expect(workingConfig.service_name).toBe('console-test-service');
-      
+
       // Verify that this config would work for logging
       expect(workingConfig._sub_name).toBe('console-test-service-development');
       expect(workingConfig.environment).toBe('development');
@@ -191,7 +191,7 @@ describe('No Config Files + No Environment Variables', () => {
 
         // Create minimal config with console logging enabled
         const { TraceRootLogger, setGlobalConfig } = require('../../src/logger');
-        
+
         const minimalConfig = new TraceRootConfigImpl({
           service_name: 'test-no-config-service',
           github_owner: 'test-owner',
@@ -282,10 +282,10 @@ describe('No Config Files + No Environment Variables', () => {
 
       // Load config - should return env var defaults
       const config = loadTypescriptConfigSync(null);
-      
+
       expect(config).not.toBeNull();
       expect(typeof config?.service_name).toBe('string'); // Should be empty string
-      expect(typeof config?.github_owner).toBe('string'); // Should be empty string  
+      expect(typeof config?.github_owner).toBe('string'); // Should be empty string
       expect(typeof config?.github_repo_name).toBe('string'); // Should be empty string
       expect(config?.github_commit_hash).toBe('main');
       expect(config?.log_level).toBe('debug');
