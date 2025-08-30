@@ -32,8 +32,8 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
           TRACEROOT_GITHUB_OWNER: 'edge-owner',
           TRACEROOT_GITHUB_REPO_NAME: 'edge-repo',
           TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT: 'true',
-          TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT: 'false'
-        }
+          TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT: 'false',
+        },
       } as any;
 
       const configLoader = require('../src/utils/configLoader');
@@ -54,8 +54,8 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
         env: {
           NEXT_RUNTIME: 'edge',
           TRACEROOT_SERVICE_NAME: 'next-edge-service',
-          TRACEROOT_TOKEN: 'edge-token-123'
-        }
+          TRACEROOT_TOKEN: 'edge-token-123',
+        },
       } as any;
 
       const configLoader = require('../src/utils/configLoader');
@@ -69,7 +69,7 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
       // Mock Edge Runtime with minimal environment
       (global.globalThis as any).EdgeRuntime = {};
       global.process = {
-        env: {}
+        env: {},
       } as any;
 
       const configLoader = require('../src/utils/configLoader');
@@ -90,7 +90,7 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
       (global.globalThis as any).EdgeRuntime = {};
       global.process = {
         env: { NODE_ENV: 'test' },
-        once: undefined  // Not available in Edge Runtime
+        once: undefined, // Not available in Edge Runtime
       } as any;
 
       const tracer = require('../src/tracer');
@@ -102,12 +102,12 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
             version: '1.0.0',
             environment: 'test',
             github_owner: 'test',
-            github_repo_name: 'test'
+            github_repo_name: 'test',
           },
           exporters: {
             console: { enabled: true },
-            cloud: { enabled: false }
-          }
+            cloud: { enabled: false },
+          },
         });
       }).not.toThrow();
 
@@ -119,7 +119,7 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
       (global.globalThis as any).EdgeRuntime = {};
       global.process = {
         env: {},
-        cwd: () => '/tmp'  // Minimal process object
+        cwd: () => '/tmp', // Minimal process object
       } as any;
 
       const tracer = require('../src/tracer');
@@ -131,12 +131,12 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
             version: '1.0.0',
             environment: 'test',
             github_owner: 'test',
-            github_repo_name: 'test'
+            github_repo_name: 'test',
           },
           exporters: {
             console: { enabled: true },
-            cloud: { enabled: false }
-          }
+            cloud: { enabled: false },
+          },
         });
       }).not.toThrow();
 
@@ -150,15 +150,15 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
       (global.globalThis as any).EdgeRuntime = {};
       global.process = {
         env: { NODE_ENV: 'test' },
-        cwd: undefined  // Not available in Edge Runtime
+        cwd: undefined, // Not available in Edge Runtime
       } as any;
 
       const configLoader = require('../src/utils/configLoader');
-      
+
       // This should succeed and return environment-based config without trying to access files
       const config = configLoader.loadTypescriptConfigSync('/some/path');
       expect(config.service_name).toBe('default-service');
-      
+
       // Verify that the config fallback to environment variables works
       expect(config.github_owner).toBe('unknown');
       expect(config.github_repo_name).toBe('unknown');
@@ -175,13 +175,13 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
           TRACEROOT_SERVICE_NAME: 'auto-init-edge-test',
           TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT: 'true',
           TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT: 'false',
-          TRACEROOT_DISABLE_AUTO_INIT: 'false'
-        }
+          TRACEROOT_DISABLE_AUTO_INIT: 'false',
+        },
       } as any;
 
       // Clear auto-init state
       delete require.cache[require.resolve('../src/autoInit')];
-      
+
       expect(() => {
         // This should trigger auto-initialization
         const autoInit = require('../src/autoInit');
@@ -210,7 +210,7 @@ describe('Edge Runtime Comprehensive Compatibility', () => {
       delete (global.globalThis as any).EdgeRuntime;
       global.process = {
         ...originalProcess,
-        env: { NEXT_RUNTIME: 'edge' }
+        env: { NEXT_RUNTIME: 'edge' },
       } as any;
 
       const configLoader = require('../src/utils/configLoader');

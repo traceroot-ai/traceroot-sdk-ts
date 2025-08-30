@@ -5,11 +5,11 @@
 describe('Tracer Edge Runtime Compatibility', () => {
   // Store original process reference
   const originalProcess = global.process;
-  
+
   afterEach(() => {
     // Restore original process
     global.process = originalProcess;
-    
+
     // Reset any tracer state
     const tracer = require('../../src/tracer');
     if (tracer.shutdown) {
@@ -26,7 +26,7 @@ describe('Tracer Edge Runtime Compatibility', () => {
     const mockProcess = {
       ...originalProcess,
       once: undefined,
-      env: { ...originalProcess.env }
+      env: { ...originalProcess.env },
     };
     global.process = mockProcess as any;
 
@@ -42,12 +42,12 @@ describe('Tracer Edge Runtime Compatibility', () => {
           version: '1.0.0',
           environment: 'test',
           github_owner: 'test',
-          github_repo_name: 'test'
+          github_repo_name: 'test',
         },
         exporters: {
           console: { enabled: true },
-          cloud: { enabled: false }
-        }
+          cloud: { enabled: false },
+        },
       });
     }).not.toThrow();
 
@@ -56,9 +56,9 @@ describe('Tracer Edge Runtime Compatibility', () => {
 
   it('should handle completely missing process object', () => {
     // Mock environment where process is mostly missing but has minimal properties
-    global.process = { 
+    global.process = {
       env: {},
-      cwd: () => '/tmp'
+      cwd: () => '/tmp',
     } as any;
 
     // Import fresh tracer instance
@@ -73,12 +73,12 @@ describe('Tracer Edge Runtime Compatibility', () => {
           version: '1.0.0',
           environment: 'test',
           github_owner: 'test',
-          github_repo_name: 'test'
+          github_repo_name: 'test',
         },
         exporters: {
           console: { enabled: true },
-          cloud: { enabled: false }
-        }
+          cloud: { enabled: false },
+        },
       });
     }).not.toThrow();
 
@@ -100,12 +100,12 @@ describe('Tracer Edge Runtime Compatibility', () => {
           version: '1.0.0',
           environment: 'test',
           github_owner: 'test',
-          github_repo_name: 'test'
+          github_repo_name: 'test',
         },
         exporters: {
           console: { enabled: true },
-          cloud: { enabled: false }
-        }
+          cloud: { enabled: false },
+        },
       });
     }).not.toThrow();
 
