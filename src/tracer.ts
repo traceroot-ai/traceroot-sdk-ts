@@ -312,6 +312,12 @@ function setupProcessExitHandlers(): void {
     return;
   }
 
+  // Skip process handlers in Edge Runtime where process.once is not available
+  if (typeof process === 'undefined' || typeof process.once !== 'function') {
+    _processHandlersSetup = true;
+    return;
+  }
+
   const cleanup = () => {
     if (_tracerProvider !== null) {
       _tracerProvider = null;

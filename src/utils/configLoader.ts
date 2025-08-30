@@ -187,22 +187,24 @@ export function findTypescriptConfig(): string | null {
     void error;
   }
 
-  // Strategy 2: Try current working directory
-  try {
-    const currentPath = process.cwd();
+  // Strategy 2: Try current working directory (skip in Edge Runtime)
+  if (!isEdgeRuntime()) {
+    try {
+      const currentPath = process.cwd();
 
-    if (currentPath && !currentPath.includes('ROOT/') && existsSync(currentPath)) {
-      for (const configName of configNames) {
-        const configPath = join(currentPath, configName);
-        if (existsSync(configPath)) {
-          return configPath;
+      if (currentPath && !currentPath.includes('ROOT/') && existsSync(currentPath)) {
+        for (const configName of configNames) {
+          const configPath = join(currentPath, configName);
+          if (existsSync(configPath)) {
+            return configPath;
+          }
         }
       }
+    } catch (error) {
+      console.error('[ConfigLoader] Strategy 2 failed - process.cwd() error:', error);
+      // process.cwd() might fail in some environments
+      void error;
     }
-  } catch (error) {
-    console.error('[ConfigLoader] Strategy 2 failed - process.cwd() error:', error);
-    // process.cwd() might fail in some environments
-    void error;
   }
 
   return null;
@@ -357,22 +359,24 @@ export function tryJavaScriptFallback(): TraceRootConfigFile | null {
     console.warn(`Failed to load config from TRACEROOT_CONFIG_PATH: ${error}`);
   }
 
-  // Strategy 2: Try current working directory
-  try {
-    const currentPath = process.cwd();
-    const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
+  // Strategy 2: Try current working directory (skip in Edge Runtime)
+  if (!isEdgeRuntime()) {
+    try {
+      const currentPath = process.cwd();
+      const jsConfigNames = ['traceroot.config.js', 'traceroot.config.mjs', 'traceroot.config.cjs'];
 
-    for (const configName of jsConfigNames) {
-      const configPath = join(currentPath, configName);
-      if (existsSync(configPath)) {
-        const result = loadJavaScriptConfig(configPath);
-        if (result) {
-          return result;
+      for (const configName of jsConfigNames) {
+        const configPath = join(currentPath, configName);
+        if (existsSync(configPath)) {
+          const result = loadJavaScriptConfig(configPath);
+          if (result) {
+            return result;
+          }
         }
       }
+    } catch (error) {
+      console.warn(`Failed to load config from current directory: ${error}`);
     }
-  } catch (error) {
-    console.warn(`Failed to load config from current directory: ${error}`);
   }
 
   // Strategy 3: Universal fallback to environment variables when all file loading fails

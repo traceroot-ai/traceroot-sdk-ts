@@ -261,11 +261,29 @@ function processPathFormat(filepath: string, config?: TraceRootConfigImpl): stri
   return processedPath || 'unknown';
 }
 
+// Edge Runtime detection
+function isEdgeRuntime(): boolean {
+  return (
+    typeof (globalThis as any).EdgeRuntime !== 'undefined' ||
+    (typeof process !== 'undefined' && process.env && process.env.NEXT_RUNTIME === 'edge')
+  );
+}
+
 /**
  * Find the actual file path by searching through the repository
  * This handles webpack-internal paths that need to be resolved to their actual location
  */
 function findActualFilePath(relativePath: string): string | null {
+  // In Edge Runtime, file system operations are not available
+  if (isEdgeRuntime()) {
+    return null;
+  }
+
+  // Check if process.cwd is available
+  if (typeof process === 'undefined' || typeof process.cwd !== 'function') {
+    return null;
+  }
+
   try {
     const fs = require('fs');
     const path = require('path');
