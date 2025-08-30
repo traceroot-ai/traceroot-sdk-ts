@@ -120,10 +120,10 @@ describe('Universal Environment Variable Fallback', () => {
         ...rawConfig, // spread the rest of the optional properties
       });
 
-      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.service_name).toBe('default-service'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_owner).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_repo_name).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_commit_hash).toBe('unknown'); // New default value
       expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
       expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
       expect(finalConfig.log_level).toBe('debug'); // Default value

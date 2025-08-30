@@ -113,10 +113,10 @@ describe('Edge Runtime Configuration Loading', () => {
         ...rawConfig, // spread the rest of the optional properties
       });
 
-      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.service_name).toBe('default-service'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_owner).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_repo_name).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_commit_hash).toBe('unknown'); // New default value
       expect(finalConfig.token).toBe(''); // From rawConfig (empty string from env loader)
       expect(finalConfig.environment).toBe('development'); // Class default applied
       expect(finalConfig.enable_span_console_export).toBe(false); // Class default applied

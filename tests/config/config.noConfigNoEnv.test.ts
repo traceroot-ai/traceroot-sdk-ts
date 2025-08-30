@@ -115,10 +115,10 @@ describe('No Config Files + No Environment Variables', () => {
         ...rawConfig, // spread the rest of the optional properties
       });
 
-      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
-      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.service_name).toBe('default-service'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_owner).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_repo_name).toBe('unknown'); // From rawConfig (new default from env loader)
+      expect(finalConfig.github_commit_hash).toBe('unknown'); // New default value
       expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
       expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
       expect(finalConfig.log_level).toBe('debug'); // Default value
@@ -130,12 +130,12 @@ describe('No Config Files + No Environment Variables', () => {
 
       expect(loadedConfig).not.toBeNull();
 
-      // Create minimal config for TraceRootConfigImpl to work
+      // Create minimal config for TraceRootConfigImpl to work using loaded defaults
       const minimalConfig = {
-        service_name: loadedConfig?.service_name || 'test-service',
-        github_owner: loadedConfig?.github_owner || 'test-owner',
-        github_repo_name: loadedConfig?.github_repo_name || 'test-repo',
-        github_commit_hash: loadedConfig?.github_commit_hash || 'main',
+        service_name: loadedConfig?.service_name || 'default-service',
+        github_owner: loadedConfig?.github_owner || 'unknown',
+        github_repo_name: loadedConfig?.github_repo_name || 'unknown',
+        github_commit_hash: loadedConfig?.github_commit_hash || 'unknown',
         enable_log_console_export: true, // Force enable console logging for testing
         log_level: loadedConfig?.log_level || 'debug',
       };
@@ -146,10 +146,10 @@ describe('No Config Files + No Environment Variables', () => {
       // Verify console logging is enabled
       expect(configImpl.enable_log_console_export).toBe(true);
       expect(configImpl.log_level).toBe('debug');
-      expect(configImpl.service_name).toBe('test-service');
-      expect(configImpl.github_owner).toBe('test-owner');
-      expect(configImpl.github_repo_name).toBe('test-repo');
-      expect(configImpl._sub_name).toBe('test-service-development');
+      expect(configImpl.service_name).toBe('default-service');
+      expect(configImpl.github_owner).toBe('unknown');
+      expect(configImpl.github_repo_name).toBe('unknown');
+      expect(configImpl._sub_name).toBe('default-service-development');
     });
   });
 
@@ -396,7 +396,7 @@ describe('No Config Files + No Environment Variables', () => {
       expect(typeof config?.service_name).toBe('string'); // Should be empty string
       expect(typeof config?.github_owner).toBe('string'); // Should be empty string
       expect(typeof config?.github_repo_name).toBe('string'); // Should be empty string
-      expect(config?.github_commit_hash).toBe('main');
+      expect(config?.github_commit_hash).toBe('unknown');
       expect(config?.log_level).toBe('debug');
     });
   });
