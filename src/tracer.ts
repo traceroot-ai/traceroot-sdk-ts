@@ -67,16 +67,16 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   // Fill in missing fields with some default values if not provided
   if (!configParams.service_name) {
-    configParams.service_name = 'N/A';
+    configParams.service_name = 'default-service';
   }
   if (!configParams.github_owner) {
-    configParams.github_owner = 'N/A';
+    configParams.github_owner = 'unknown';
   }
   if (!configParams.github_repo_name) {
-    configParams.github_repo_name = 'N/A';
+    configParams.github_repo_name = 'unknown';
   }
   if (!configParams.github_commit_hash) {
-    configParams.github_commit_hash = 'N/A';
+    configParams.github_commit_hash = 'unknown';
   }
 
   const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
@@ -106,6 +106,16 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   // Update the global config with full config object
   _config = config;
+
+  // If both span exports are disabled, create minimal no-op tracer
+  if (!config.enable_span_cloud_export && !config.enable_span_console_export) {
+    _tracerProvider = new NodeTracerProvider({
+      resource: Resource.default(),
+      spanProcessors: [new NoopSpanProcessor()],
+    });
+    setupProcessExitHandlers();
+    return _tracerProvider;
+  }
 
   // Create resource with service information using new semantic conventions
   const resource = Resource.default().merge(
