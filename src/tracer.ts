@@ -1,11 +1,4 @@
 import { trace as otelTrace, SpanStatusCode, Span } from '@opentelemetry/api';
-// Import appropriate tracer provider based on runtime
-let TracerProviderClass: any;
-let BatchSpanProcessor: any;
-let SimpleSpanProcessor: any;
-let ConsoleSpanExporter: any;
-let NoopSpanProcessor: any;
-
 // Edge Runtime detection
 function isEdgeRuntime(): boolean {
   return (
@@ -14,22 +7,29 @@ function isEdgeRuntime(): boolean {
   );
 }
 
-if (isEdgeRuntime()) {
-  // Use web/browser compatible OpenTelemetry packages for Edge Runtime
-  const webSdk = require('@opentelemetry/sdk-trace-base');
-  TracerProviderClass = webSdk.BasicTracerProvider;
-  BatchSpanProcessor = webSdk.BatchSpanProcessor;
-  SimpleSpanProcessor = webSdk.SimpleSpanProcessor;
-  ConsoleSpanExporter = webSdk.ConsoleSpanExporter;
-  NoopSpanProcessor = webSdk.NoopSpanProcessor;
-} else {
-  // Use Node.js specific packages for Node.js runtime
-  const nodeSdk = require('@opentelemetry/sdk-trace-node');
-  TracerProviderClass = nodeSdk.NodeTracerProvider;
-  BatchSpanProcessor = nodeSdk.BatchSpanProcessor;
-  SimpleSpanProcessor = nodeSdk.SimpleSpanProcessor;
-  ConsoleSpanExporter = nodeSdk.ConsoleSpanExporter;
-  NoopSpanProcessor = nodeSdk.NoopSpanProcessor;
+// Lazy loading function to get OpenTelemetry classes
+function getOpenTelemetryClasses() {
+  if (isEdgeRuntime()) {
+    // Use web/browser compatible OpenTelemetry packages for Edge Runtime
+    const webSdk = require('@opentelemetry/sdk-trace-base');
+    return {
+      TracerProviderClass: webSdk.BasicTracerProvider,
+      BatchSpanProcessor: webSdk.BatchSpanProcessor,
+      SimpleSpanProcessor: webSdk.SimpleSpanProcessor,
+      ConsoleSpanExporter: webSdk.ConsoleSpanExporter,
+      NoopSpanProcessor: webSdk.NoopSpanProcessor,
+    };
+  } else {
+    // Use Node.js specific packages for Node.js runtime
+    const nodeSdk = require('@opentelemetry/sdk-trace-node');
+    return {
+      TracerProviderClass: nodeSdk.NodeTracerProvider,
+      BatchSpanProcessor: nodeSdk.BatchSpanProcessor,
+      SimpleSpanProcessor: nodeSdk.SimpleSpanProcessor,
+      ConsoleSpanExporter: nodeSdk.ConsoleSpanExporter,
+      NoopSpanProcessor: nodeSdk.NoopSpanProcessor,
+    };
+  }
 }
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
@@ -83,6 +83,15 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): any {
     console.log('[TraceRoot] Tracer already initialized, returning existing instance');
     return _tracerProvider;
   }
+
+  // Get the appropriate OpenTelemetry classes for current runtime
+  const {
+    TracerProviderClass,
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+    ConsoleSpanExporter,
+    NoopSpanProcessor,
+  } = getOpenTelemetryClasses();
   // Merge file config with kwargs (kwargs take precedence)
   let configParams: Partial<TraceRootConfig> = kwargs;
 

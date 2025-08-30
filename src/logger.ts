@@ -2,10 +2,6 @@
  * Enhanced logging with automatic trace correlation
  */
 
-// Conditional imports for Node.js only
-let winston: any = null;
-let WinstonCloudWatch: any = null;
-
 // Edge Runtime detection
 function isEdgeRuntime(): boolean {
   return (
@@ -14,13 +10,18 @@ function isEdgeRuntime(): boolean {
   );
 }
 
-// Only import Winston in Node.js environments
-if (!isEdgeRuntime()) {
+// Lazy loading function for Winston dependencies
+function getWinstonClasses() {
+  if (isEdgeRuntime()) {
+    return { winston: null, WinstonCloudWatch: null };
+  }
   try {
-    winston = require('winston');
-    WinstonCloudWatch = require('winston-cloudwatch');
+    const winston = require('winston');
+    const WinstonCloudWatch = require('winston-cloudwatch');
+    return { winston, WinstonCloudWatch };
   } catch (error) {
     console.warn('[TraceRoot] Failed to import Winston dependencies:', error);
+    return { winston: null, WinstonCloudWatch: null };
   }
 }
 import { trace as otelTrace } from '@opentelemetry/api';
@@ -32,6 +33,7 @@ import { API_ENDPOINTS } from './constants';
  * Custom Winston format for trace correlation
  */
 const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string) => {
+  const { winston } = getWinstonClasses();
   if (!winston) {
     // Return a no-op formatter in Edge Runtime
     return (info: any) => info;
@@ -598,6 +600,9 @@ export class TraceRootLogger {
         effectiveLevel = config.log_level;
       }
 
+      // Get Winston classes
+      const { winston } = getWinstonClasses();
+
       // In Edge Runtime, use console logging directly
       if (isEdgeRuntime() || !winston) {
         console.log(
@@ -674,6 +679,13 @@ export class TraceRootLogger {
    * 3) Remove old transport
    */
   private recreateCloudWatchTransport(credentials: AwsCredentials): void {
+    // Get Winston classes
+    const { WinstonCloudWatch } = getWinstonClasses();
+
+    if (!WinstonCloudWatch) {
+      return;
+    }
+
     try {
       // Create new AWS configuration with updated credentials
       const awsConfig: any = {
@@ -791,6 +803,7 @@ export class TraceRootLogger {
     // Console logger for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
       try {
+        const { winston } = getWinstonClasses();
         // Skip Winston in Edge Runtime
         if (isEdgeRuntime() || !winston) {
           console.log(
@@ -853,6 +866,9 @@ export class TraceRootLogger {
   }
 
   private setupCloudWatchTransport(): void {
+    // Get Winston classes
+    const { WinstonCloudWatch } = getWinstonClasses();
+
     // Skip CloudWatch setup in Edge Runtime
     if (isEdgeRuntime() || !WinstonCloudWatch) {
       return;
@@ -913,6 +929,9 @@ export class TraceRootLogger {
     // For local mode or when cloud export is disabled, logs are handled by:
     // 1. Console output (if enable_log_console_export is true, handled in setupTransports)
     // 2. Direct span events (handled in addSpanEventDirectly)
+
+    // Get Winston classes
+    const { winston } = getWinstonClasses();
 
     // Skip Winston operations in Edge Runtime
     if (isEdgeRuntime() || !winston) {
