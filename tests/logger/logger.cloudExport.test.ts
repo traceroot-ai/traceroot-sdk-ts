@@ -101,7 +101,7 @@ describe('Cloud Export Logging', () => {
       github_repo_name: 'test-repo',
       github_commit_hash: 'test-hash',
       environment: 'test',
-      // enable_log_cloud_export defaults to true
+      enable_log_cloud_export: true, // Explicitly enable for this test
       local_mode: false,
       token: 'test-token',
     });
@@ -160,17 +160,17 @@ describe('Cloud Export Logging', () => {
     ).resolves.not.toThrow();
   });
 
-  test('should default enable_log_cloud_export to true when not specified', () => {
+  test('should default enable_log_cloud_export to false when not specified', () => {
     const config = new TraceRootConfigImpl({
       service_name: 'test-service',
       github_owner: 'test',
       github_repo_name: 'test-repo',
       github_commit_hash: 'test-hash',
       environment: 'test',
-      // enable_log_cloud_export not specified - should default to true
+      // enable_log_cloud_export not specified - should default to false
     });
 
-    expect(config.enable_log_cloud_export).toBe(true);
+    expect(config.enable_log_cloud_export).toBe(false);
   });
 
   test('should respect explicitly set enable_log_cloud_export to false', () => {

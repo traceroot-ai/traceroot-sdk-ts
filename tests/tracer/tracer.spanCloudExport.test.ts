@@ -223,7 +223,7 @@ describe('Span Cloud Export Configuration', () => {
         github_commit_hash: 'test-commit',
         environment: 'test',
         local_mode: false,
-        // enable_span_cloud_export not specified - should default to true
+        enable_span_cloud_export: true, // Explicitly enable for this test
         token: 'test-token',
       };
 
@@ -236,7 +236,7 @@ describe('Span Cloud Export Configuration', () => {
       const { getConfig } = require('../../src/tracer');
       const config = getConfig();
 
-      // Verify that span cloud export defaults to true
+      // Verify that span cloud export is enabled
       expect(config?.enable_span_cloud_export).toBe(true);
     });
   });

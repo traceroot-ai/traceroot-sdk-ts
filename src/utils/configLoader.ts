@@ -11,23 +11,45 @@ function isEdgeRuntime(): boolean {
 
 // Load config from environment variables for Edge Runtime
 export function loadConfigFromEnv(): TraceRootConfigFile {
-  return {
+  const config: any = {
     service_name: process.env.TRACEROOT_SERVICE_NAME || '',
     github_owner: process.env.TRACEROOT_GITHUB_OWNER || '',
     github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || '',
     github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'main',
     token: process.env.TRACEROOT_TOKEN || '',
-    name: process.env.TRACEROOT_NAME,
-    aws_region: process.env.TRACEROOT_AWS_REGION,
-    otlp_endpoint: process.env.TRACEROOT_OTLP_ENDPOINT,
-    environment: process.env.TRACEROOT_ENVIRONMENT,
-    enable_span_console_export: process.env.TRACEROOT_ENABLE_SPAN_CONSOLE_EXPORT === 'true',
-    enable_log_console_export: process.env.TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT === 'true',
-    enable_span_cloud_export: process.env.TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT !== 'false', // default true
-    enable_log_cloud_export: process.env.TRACEROOT_ENABLE_LOG_CLOUD_EXPORT !== 'false', // default true
-    local_mode: process.env.TRACEROOT_LOCAL_MODE === 'true',
     log_level: (process.env.TRACEROOT_LOG_LEVEL as any) || 'debug',
   };
+
+  // Only include optional properties if explicitly set in environment variables
+  if (process.env.TRACEROOT_NAME) {
+    config.name = process.env.TRACEROOT_NAME;
+  }
+  if (process.env.TRACEROOT_AWS_REGION) {
+    config.aws_region = process.env.TRACEROOT_AWS_REGION;
+  }
+  if (process.env.TRACEROOT_OTLP_ENDPOINT) {
+    config.otlp_endpoint = process.env.TRACEROOT_OTLP_ENDPOINT;
+  }
+  if (process.env.TRACEROOT_ENVIRONMENT) {
+    config.environment = process.env.TRACEROOT_ENVIRONMENT;
+  }
+  if (process.env.TRACEROOT_ENABLE_SPAN_CONSOLE_EXPORT !== undefined) {
+    config.enable_span_console_export = process.env.TRACEROOT_ENABLE_SPAN_CONSOLE_EXPORT === 'true';
+  }
+  if (process.env.TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT !== undefined) {
+    config.enable_log_console_export = process.env.TRACEROOT_ENABLE_LOG_CONSOLE_EXPORT === 'true';
+  }
+  if (process.env.TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT !== undefined) {
+    config.enable_span_cloud_export = process.env.TRACEROOT_ENABLE_SPAN_CLOUD_EXPORT === 'true';
+  }
+  if (process.env.TRACEROOT_ENABLE_LOG_CLOUD_EXPORT !== undefined) {
+    config.enable_log_cloud_export = process.env.TRACEROOT_ENABLE_LOG_CLOUD_EXPORT === 'true';
+  }
+  if (process.env.TRACEROOT_LOCAL_MODE !== undefined) {
+    config.local_mode = process.env.TRACEROOT_LOCAL_MODE === 'true';
+  }
+
+  return config;
 }
 
 // Edge Runtime compatible fs functions

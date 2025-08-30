@@ -102,17 +102,26 @@ describe('No Config Files + No Environment Variables', () => {
         expect(key.startsWith('TRACEROOT_')).toBe(false);
       });
 
-      // Load config - should fall back to environment variable defaults
-      const loadedConfig = loadTypescriptConfigSync(null);
+      // Load raw config - should fall back to environment variable defaults
+      const rawConfig = loadTypescriptConfigSync(null);
+      expect(rawConfig).not.toBeNull();
 
-      expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty default from env loader
-      expect(loadedConfig?.github_owner).toBe(''); // Empty default from env loader
-      expect(loadedConfig?.github_repo_name).toBe(''); // Empty default from env loader
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
-      expect(loadedConfig?.enable_log_console_export).toBe(false); // Default false when env var not 'true'
-      expect(loadedConfig?.enable_log_cloud_export).toBe(true); // Default true when env var not 'false'
-      expect(loadedConfig?.log_level).toBe('debug'); // Default value
+      // Create TraceRootConfigImpl with the raw config to test final values
+      const finalConfig = new TraceRootConfigImpl({
+        service_name: rawConfig?.service_name || 'test-service',
+        github_owner: rawConfig?.github_owner || 'test-owner',
+        github_repo_name: rawConfig?.github_repo_name || 'test-repo',
+        github_commit_hash: rawConfig?.github_commit_hash || 'main',
+        ...rawConfig, // spread the rest of the optional properties
+      });
+
+      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
+      expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
+      expect(finalConfig.log_level).toBe('debug'); // Default value
     });
 
     test('should create TraceRootConfigImpl with minimal required fields and enable console logging', () => {
@@ -237,7 +246,7 @@ describe('No Config Files + No Environment Variables', () => {
       });
 
       // Verify defaults are applied correctly
-      expect(basicConfig.enable_log_console_export).toBe(false); // Constructor sets to false by default
+      expect(basicConfig.enable_log_console_export).toBe(true); // Class default is now true
       expect(basicConfig.enable_span_console_export).toBe(false);
       expect(basicConfig.log_level).toBe('debug');
       expect(basicConfig.environment).toBe('development');

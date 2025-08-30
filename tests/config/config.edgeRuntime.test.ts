@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { findTypescriptConfig, loadTypescriptConfigSync } from '../../src/utils/configLoader';
+import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock modules to avoid side effects
 jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
@@ -100,21 +101,30 @@ describe('Edge Runtime Configuration Loading', () => {
     test('should use empty string defaults when environment variables are not set', () => {
       // No environment variables set
 
-      const loadedConfig = loadTypescriptConfigSync(null);
+      const rawConfig = loadTypescriptConfigSync(null);
+      expect(rawConfig).not.toBeNull();
 
-      expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe('');
-      expect(loadedConfig?.github_owner).toBe('');
-      expect(loadedConfig?.github_repo_name).toBe('');
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
-      expect(loadedConfig?.token).toBe('');
-      expect(loadedConfig?.environment).toBeUndefined();
-      expect(loadedConfig?.enable_span_console_export).toBe(false);
-      expect(loadedConfig?.enable_log_console_export).toBe(false);
-      expect(loadedConfig?.enable_span_cloud_export).toBe(true); // Default true
-      expect(loadedConfig?.enable_log_cloud_export).toBe(true); // Default true
-      expect(loadedConfig?.local_mode).toBe(false);
-      expect(loadedConfig?.log_level).toBe('debug'); // Default value
+      // Create TraceRootConfigImpl with the raw config to test final values
+      const finalConfig = new TraceRootConfigImpl({
+        service_name: rawConfig?.service_name || 'test-service',
+        github_owner: rawConfig?.github_owner || 'test-owner',
+        github_repo_name: rawConfig?.github_repo_name || 'test-repo',
+        github_commit_hash: rawConfig?.github_commit_hash || 'main',
+        ...rawConfig, // spread the rest of the optional properties
+      });
+
+      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.token).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.environment).toBe('development'); // Class default applied
+      expect(finalConfig.enable_span_console_export).toBe(false); // Class default applied
+      expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
+      expect(finalConfig.enable_span_cloud_export).toBe(false); // Class default applied
+      expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
+      expect(finalConfig.local_mode).toBe(false); // Class default applied
+      expect(finalConfig.log_level).toBe('debug'); // Default value
     });
 
     test('should handle boolean environment variables correctly', () => {
@@ -128,9 +138,9 @@ describe('Edge Runtime Configuration Loading', () => {
       const loadedConfig = loadTypescriptConfigSync(null);
 
       expect(loadedConfig?.enable_span_console_export).toBe(true);
-      expect(loadedConfig?.enable_log_console_export).toBe(false);
+      expect(loadedConfig?.enable_log_console_export).toBe(false); // Explicitly set to false
       expect(loadedConfig?.enable_span_cloud_export).toBe(false);
-      expect(loadedConfig?.enable_log_cloud_export).toBe(true); // Default true since not 'false'
+      expect(loadedConfig?.enable_log_cloud_export).toBe(false); // Default false now
       expect(loadedConfig?.local_mode).toBe(true);
     });
 
@@ -138,21 +148,30 @@ describe('Edge Runtime Configuration Loading', () => {
       // Set only required minimal config for Edge Runtime
       process.env.TRACEROOT_SERVICE_NAME = 'minimal-edge-service';
 
-      const loadedConfig = loadTypescriptConfigSync(null);
+      const rawConfig = loadTypescriptConfigSync(null);
+      expect(rawConfig).not.toBeNull();
 
-      expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe('minimal-edge-service');
+      // Create TraceRootConfigImpl with the raw config to test final values
+      const finalConfig = new TraceRootConfigImpl({
+        service_name: rawConfig?.service_name || 'test-service',
+        github_owner: rawConfig?.github_owner || 'test-owner',
+        github_repo_name: rawConfig?.github_repo_name || 'test-repo',
+        github_commit_hash: rawConfig?.github_commit_hash || 'main',
+        ...rawConfig, // spread the rest of the optional properties
+      });
+
+      expect(finalConfig.service_name).toBe('minimal-edge-service'); // From rawConfig (env var)
 
       // Console logging should be available (defaults)
-      expect(loadedConfig?.enable_log_console_export).toBe(false); // Default false, but available
-      expect(loadedConfig?.enable_span_console_export).toBe(false); // Default false, but available
+      expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
+      expect(finalConfig.enable_span_console_export).toBe(false); // Class default applied
 
-      // Cloud exports should default to true
-      expect(loadedConfig?.enable_log_cloud_export).toBe(true);
-      expect(loadedConfig?.enable_span_cloud_export).toBe(true);
+      // Cloud exports should default to false now
+      expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
+      expect(finalConfig.enable_span_cloud_export).toBe(false); // Class default applied
 
       // Local mode should be false by default
-      expect(loadedConfig?.local_mode).toBe(false);
+      expect(finalConfig.local_mode).toBe(false); // Class default applied
     });
 
     test('should enable console logging when explicitly set in Edge Runtime', () => {

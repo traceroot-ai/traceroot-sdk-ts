@@ -76,7 +76,7 @@ describe('TraceRoot Configuration Initialization', () => {
       expect(config.otlp_endpoint).toBe('http://localhost:4318/v1/traces');
       expect(config.environment).toBe('development');
       expect(config.enable_span_console_export).toBe(false);
-      expect(config.enable_log_console_export).toBe(false);
+      expect(config.enable_log_console_export).toBe(true);
       expect(config.local_mode).toBe(false);
     });
 

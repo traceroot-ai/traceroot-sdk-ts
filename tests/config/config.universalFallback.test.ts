@@ -8,6 +8,7 @@
 import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { loadTypescriptConfigSync, tryJavaScriptFallback } from '../../src/utils/configLoader';
+import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock modules to avoid side effects
 jest.mock('@aws-sdk/client-cloudwatch-logs', () => ({
@@ -107,16 +108,25 @@ describe('Universal Environment Variable Fallback', () => {
     test('should use environment variables with empty defaults when no config files and no env vars', () => {
       // No environment variables set, no config files exist
 
-      const loadedConfig = loadTypescriptConfigSync(null);
+      const rawConfig = loadTypescriptConfigSync(null);
+      expect(rawConfig).not.toBeNull();
 
-      expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_owner).toBe(''); // Empty string default
-      expect(loadedConfig?.github_repo_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
-      expect(loadedConfig?.enable_log_console_export).toBe(false); // Default false
-      expect(loadedConfig?.enable_log_cloud_export).toBe(true); // Default true
-      expect(loadedConfig?.log_level).toBe('debug'); // Default value
+      // Create TraceRootConfigImpl with the raw config to test final values
+      const finalConfig = new TraceRootConfigImpl({
+        service_name: rawConfig?.service_name || 'test-service',
+        github_owner: rawConfig?.github_owner || 'test-owner',
+        github_repo_name: rawConfig?.github_repo_name || 'test-repo',
+        github_commit_hash: rawConfig?.github_commit_hash || 'main',
+        ...rawConfig, // spread the rest of the optional properties
+      });
+
+      expect(finalConfig.service_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_owner).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_repo_name).toBe(''); // From rawConfig (empty string from env loader)
+      expect(finalConfig.github_commit_hash).toBe('main'); // Default value
+      expect(finalConfig.enable_log_console_export).toBe(true); // Class default applied
+      expect(finalConfig.enable_log_cloud_export).toBe(false); // Class default applied
+      expect(finalConfig.log_level).toBe('debug'); // Default value
     });
   });
 

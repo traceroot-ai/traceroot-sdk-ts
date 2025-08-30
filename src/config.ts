@@ -104,13 +104,23 @@ export class TraceRootConfigImpl implements TraceRootConfig {
     this.aws_region = config.aws_region || 'us-west-2';
     this.otlp_endpoint = config.otlp_endpoint || 'http://localhost:4318/v1/traces';
     this.environment = config.environment || 'development';
-    this.enable_span_console_export = config.enable_span_console_export || false;
-    this.enable_log_console_export = config.enable_log_console_export || false;
+    this.enable_span_console_export =
+      config.enable_span_console_export !== undefined
+        ? config.enable_span_console_export
+        : this.enable_span_console_export;
+    this.enable_log_console_export =
+      config.enable_log_console_export !== undefined
+        ? config.enable_log_console_export
+        : this.enable_log_console_export;
     this.enable_span_cloud_export =
-      config.enable_span_cloud_export !== undefined ? config.enable_span_cloud_export : true;
+      config.enable_span_cloud_export !== undefined
+        ? config.enable_span_cloud_export
+        : this.enable_span_cloud_export;
     this.enable_log_cloud_export =
-      config.enable_log_cloud_export !== undefined ? config.enable_log_cloud_export : true;
-    this.local_mode = config.local_mode || false;
+      config.enable_log_cloud_export !== undefined
+        ? config.enable_log_cloud_export
+        : this.enable_log_cloud_export;
+    this.local_mode = config.local_mode !== undefined ? config.local_mode : this.local_mode;
     this.log_level = config.log_level || 'debug';
 
     this._name = this.name;
