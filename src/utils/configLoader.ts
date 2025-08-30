@@ -12,10 +12,10 @@ function isEdgeRuntime(): boolean {
 // Load config from environment variables for Edge Runtime
 export function loadConfigFromEnv(): TraceRootConfigFile {
   const config: any = {
-    service_name: process.env.TRACEROOT_SERVICE_NAME || '',
-    github_owner: process.env.TRACEROOT_GITHUB_OWNER || '',
-    github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || '',
-    github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'main',
+    service_name: process.env.TRACEROOT_SERVICE_NAME || 'default-service',
+    github_owner: process.env.TRACEROOT_GITHUB_OWNER || 'unknown',
+    github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || 'unknown',
+    github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'unknown',
     token: process.env.TRACEROOT_TOKEN || '',
     log_level: (process.env.TRACEROOT_LOG_LEVEL as any) || 'debug',
   };

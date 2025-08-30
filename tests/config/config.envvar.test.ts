@@ -278,8 +278,8 @@ module.exports = config;
 
       // With universal fallback, should now return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should prioritize environment variable over directory files', () => {
@@ -340,8 +340,8 @@ const config = {
 
       // With universal fallback, should return environment config when file has syntax error
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should handle environment variable pointing to directory instead of file', () => {
@@ -355,8 +355,8 @@ const config = {
 
       // With universal fallback, should return environment config when path is directory
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should handle empty environment variable gracefully', () => {

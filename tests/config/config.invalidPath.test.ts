@@ -98,8 +98,8 @@ describe('Invalid TRACEROOT_CONFIG_PATH Handling', () => {
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should return environment variables when TRACEROOT_CONFIG_PATH points to invalid file path', () => {
@@ -111,8 +111,8 @@ describe('Invalid TRACEROOT_CONFIG_PATH Handling', () => {
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should return environment variables when TRACEROOT_CONFIG_PATH is empty string', () => {
@@ -124,8 +124,8 @@ describe('Invalid TRACEROOT_CONFIG_PATH Handling', () => {
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should return environment variables when TRACEROOT_CONFIG_PATH is just whitespace', () => {
@@ -137,8 +137,8 @@ describe('Invalid TRACEROOT_CONFIG_PATH Handling', () => {
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
   });
 
@@ -186,13 +186,13 @@ module.exports = config;
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
 
       // Test the JavaScript fallback function directly
       const fallbackConfig = tryJavaScriptFallback();
       expect(fallbackConfig).not.toBeNull(); // Should return environment config when no config files exist
-      expect(fallbackConfig?.service_name).toBe(''); // Empty string default
+      expect(fallbackConfig?.service_name).toBe('default-service'); // New default value
     });
   });
 
@@ -301,8 +301,8 @@ module.exports = {
       const loadedConfig = loadTypescriptConfigSync(testDir); // Test loading directory directly
       // With universal fallback, should return environment config when directory loading fails
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should handle permission denied scenarios gracefully', () => {
@@ -315,8 +315,8 @@ module.exports = {
       const loadedConfig = loadTypescriptConfigSync(foundConfig);
       // With universal fallback, should return environment config when permission denied
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
   });
 });

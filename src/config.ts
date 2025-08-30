@@ -95,10 +95,10 @@ export class TraceRootConfigImpl implements TraceRootConfig {
   _sub_name?: string;
 
   constructor(config: TraceRootConfig) {
-    this.service_name = config.service_name;
-    this.github_owner = config.github_owner;
-    this.github_repo_name = config.github_repo_name;
-    this.github_commit_hash = config.github_commit_hash;
+    this.service_name = config.service_name || 'default-service';
+    this.github_owner = config.github_owner || 'unknown';
+    this.github_repo_name = config.github_repo_name || 'unknown';
+    this.github_commit_hash = config.github_commit_hash || 'unknown';
     this.token = config.token;
     this.name = config.name;
     this.aws_region = config.aws_region || 'us-west-2';

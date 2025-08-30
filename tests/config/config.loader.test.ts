@@ -232,8 +232,8 @@ export default config as InvalidTypeNameThatDoesNotExist;
 
       // With universal fallback, should return environment config instead of null
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
 
     test('should handle invalid JavaScript syntax gracefully', () => {
@@ -251,8 +251,8 @@ const config = {
 
       // With universal fallback, should return environment config when syntax error occurs
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
   });
 
@@ -345,8 +345,8 @@ const config: Config = {
 
       // With universal fallback, should return environment config when TypeScript compilation fails
       expect(loadedConfig).not.toBeNull();
-      expect(loadedConfig?.service_name).toBe(''); // Empty string default
-      expect(loadedConfig?.github_commit_hash).toBe('main'); // Default value
+      expect(loadedConfig?.service_name).toBe('default-service'); // New default value
+      expect(loadedConfig?.github_commit_hash).toBe('unknown'); // New default value
     });
   });
 
