@@ -228,18 +228,6 @@ main().then(async () => {
 
 ```
 
-In the example above, you can search for `requestId` in the TraceRoot UI by
-
-- Clicking the search bar category icon and select `log`.
-- Type `requestId` in the first input box.
-- Select `=` and in the second input box type `123` for this example.
-- Type Enter button to add that criteria to search. Then you can see all traces or workflows with `requestId` as `123` logging metadata in the TraceRoot UI.
-- Notice that within the same trace decorator or `traceFunction` call, a new logging metadata will replace the previous one. For example, if you have two `logger.info` calls with first one having `requestId` as `123` and the second one having `requestId` as `456`, the second one will replace the first one at last. For now, to avoid this, you may need to add a new `traceFunction` call or a new `trace` decorator.
-
-<div align="center">
-  <img src="misc/images/log_metadata_search.png" alt="Log Metadata Search" width="90%">
-</div>
-
 More details can be found in the [examples](./examples).
 
 You can run following examples after modifying the `traceroot.config.ts` file:
