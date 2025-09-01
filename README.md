@@ -1,4 +1,5 @@
 # TraceRoot TypeScript SDK
+
 <div align="center">
   <a href="https://traceroot.ai/">
     <img src="https://raw.githubusercontent.com/traceroot-ai/traceroot/main/misc/images/traceroot_logo.png" alt="TraceRoot Logo">
@@ -6,7 +7,6 @@
 </div>
 
 <div align="center">
-
 
 [![Testing Status][testing-image]][testing-url]
 [![Documentation][docs-image]][docs-url]
