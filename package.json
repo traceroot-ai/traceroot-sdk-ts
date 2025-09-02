@@ -1,6 +1,6 @@
 {
   "name": "traceroot-sdk-ts",
-  "version": "0.0.1-alpha.27",
+  "version": "0.0.1-alpha.30",
   "description": "TypeScript SDK for TraceRoot tracing and logging",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,11 +16,10 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "jest",
-    "example": "ts-node examples/simple-example.ts",
-    "format": "prettier --write \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" \"*.{ts,js}\"",
-    "lint": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\"",
-    "lint:fix": "eslint \"src/**/*.{ts,js}\" \"examples/**/*.{ts,js}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,js}\" \"*.{ts,js}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js}\" \"*.{ts,js}\"",
+    "lint": "eslint \"src/**/*.{ts,js}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,js}\" --fix",
     "prepublishOnly": "npm run build && npm run lint && npm run format:check",
     "prepack": "npm run build"
   },
@@ -56,6 +55,7 @@
     "@opentelemetry/sdk-trace-node": "^1.28.0",
     "@opentelemetry/semantic-conventions": "^1.36.0",
     "axios": "^1.6.0",
+    "effect": "^3.17.9",
     "winston": "^3.11.0",
     "winston-cloudwatch": "^6.3.0",
     "yaml": "^2.3.4"

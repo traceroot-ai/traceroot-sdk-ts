@@ -58,11 +58,11 @@ main().then(async () => {
 
 Please reach out to founders@traceroot.ai if you have any questions.
 
-[company-website-image]: https://img.shields.io/badge/website-traceroot.ai-148740
+[company-website-image]: https://img.shields.io/badge/website-traceroot.ai-black
 [company-website-url]: https://traceroot.ai
 [docs-image]: https://img.shields.io/badge/docs-traceroot.ai-0dbf43
 [docs-url]: https://docs.traceroot.ai
 [npm-image]: https://img.shields.io/npm/v/traceroot-sdk-ts?style=flat-square&logo=npm&logoColor=fff
 [npm-url]: https://www.npmjs.com/package/traceroot-sdk-ts
-[testing-image]: https://github.com/traceroot-ai/traceroot/actions/workflows/test.yml/badge.svg
-[testing-url]: https://github.com/traceroot-ai/traceroot/actions/workflows/test.yml
+[testing-image]: https://github.com/traceroot-ai/traceroot-sdk-ts/actions/workflows/test.yml/badge.svg
+[testing-url]: https://github.com/traceroot-ai/traceroot-sdk-ts/actions/workflows/test.yml
