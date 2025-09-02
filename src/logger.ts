@@ -925,7 +925,7 @@ export class TraceRootLogger {
     if (this.consoleLogger) {
       try {
         // Pass only the user-provided metadata (from processLogArgs)
-        (this.consoleLogger as any)[level](message, userMetadata || {});
+        (this.consoleLogger as any)[level](`[TraceRoot] ${message}`, userMetadata || {});
       } catch (error: any) {
         console.error(`[TraceRoot] Console logger ${level} error:`, error?.message || error);
       }
