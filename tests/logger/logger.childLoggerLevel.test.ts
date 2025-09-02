@@ -74,7 +74,6 @@ jest.mock('@opentelemetry/api', () => ({
 describe('TraceRoot Child Logger Level Behavior', () => {
   let mockConfig: TraceRootConfigImpl;
   let mockWinstonLogger: any;
-  let mockConsoleLogger: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -103,7 +102,6 @@ describe('TraceRoot Child Logger Level Behavior', () => {
     (winston.createLogger as jest.Mock).mockClear();
 
     mockWinstonLogger = winston.createLogger();
-    mockConsoleLogger = winston.createLogger();
   });
 
   describe('Child logger level inheritance', () => {
@@ -209,7 +207,7 @@ describe('TraceRoot Child Logger Level Behavior', () => {
       expect(createLoggerSpy).toHaveBeenCalledTimes(2); // Still 2, no additional calls
 
       // Creating nested child should not create additional loggers
-      const grandchildLogger = childLogger.child({ operation: 'login' });
+      childLogger.child({ operation: 'login' });
       expect(createLoggerSpy).toHaveBeenCalledTimes(2); // Still 2, no additional calls
     });
   });

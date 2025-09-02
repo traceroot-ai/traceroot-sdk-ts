@@ -1,7 +1,6 @@
 import { getLogger, shutdownLogger, setGlobalConfig } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 import * as credential from '../../src/api/credential';
-import * as tracer from '../../src/tracer';
 
 // Mock winston and related dependencies
 jest.mock('winston', () => {
@@ -293,7 +292,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
       const logger = getLogger();
       await logger.info('This should not throw even with no credentials');
       await logger.error('This should not throw even with no credentials');
-    } catch (error) {
+    } catch {
       threwError = true;
     }
 

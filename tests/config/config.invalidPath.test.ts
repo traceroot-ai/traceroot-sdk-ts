@@ -294,7 +294,7 @@ module.exports = {
       // Point to a directory instead of a file
       process.env.TRACEROOT_CONFIG_PATH = testDir;
 
-      const foundConfig = findTypescriptConfig();
+      findTypescriptConfig();
       // Note: findTypescriptConfig doesn't validate that the path is a file vs directory
       // It will return the path if it exists, but loadTypescriptConfigSync should handle it
 

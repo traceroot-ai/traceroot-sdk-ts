@@ -7,7 +7,7 @@
  * 3. Console logger still works with default TraceRoot configuration
  */
 
-import { existsSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from 'fs';
+import { existsSync, unlinkSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { loadTypescriptConfigSync } from '../../src/utils/configLoader';
 import { TraceRootConfigImpl } from '../../src/config';
@@ -161,7 +161,7 @@ describe('No Config Files + No Environment Variables', () => {
       expect(process.env.TRACEROOT_SERVICE_NAME).toBeUndefined();
 
       // Load config (will use environment variable defaults)
-      const loadedConfig = loadTypescriptConfigSync(null);
+      loadTypescriptConfigSync(null);
 
       // Create a working config with console logging enabled
       const workingConfig = new TraceRootConfigImpl({

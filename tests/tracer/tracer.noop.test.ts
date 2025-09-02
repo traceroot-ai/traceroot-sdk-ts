@@ -8,7 +8,6 @@ process.env.TRACEROOT_DISABLE_AUTO_INIT = 'true';
 import { jest } from '@jest/globals';
 import * as traceroot from '../../src/index';
 import { TraceRootConfig } from '../../src/config';
-import { NoopSpanProcessor } from '@opentelemetry/sdk-trace-node';
 
 // Mock the credential fetching function
 jest.mock('../../src/api/credential', () => ({

@@ -1,4 +1,4 @@
-import { TraceRootLogger, setGlobalConfig, getLogger } from '../../src/logger';
+import { setGlobalConfig, getLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 
 // Mock winston and related dependencies
@@ -113,9 +113,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
     consoleErrorSpy.mockRestore();
   });
 
-  const initializeLogger = (config: TraceRootConfigImpl): TraceRootLogger => {
-    return TraceRootLogger.create(config);
-  };
 
   const createCredentials = (expirationOffset: number) => ({
     aws_access_key_id: 'test-access-key-id',

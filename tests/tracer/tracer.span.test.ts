@@ -7,7 +7,7 @@
 process.env.TRACEROOT_DISABLE_AUTO_INIT = 'true';
 
 import { jest } from '@jest/globals';
-import { Span, SpanStatusCode } from '@opentelemetry/api';
+import { Span } from '@opentelemetry/api';
 import * as traceroot from '../../src/index';
 import { TraceRootConfig } from '../../src/config';
 
@@ -34,7 +34,6 @@ const createMockSpan = () => {
 };
 
 // Mock _storeDictInSpan function
-const mockStoreDictInSpan = jest.fn();
 
 // Since the helper functions are private, we'll test them through the public API
 // but also create isolated tests by accessing them through module internals

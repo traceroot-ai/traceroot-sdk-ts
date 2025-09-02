@@ -149,7 +149,7 @@ describe('Logger Path Processing', () => {
               if (found) return found;
             }
           }
-        } catch (error) {
+        } catch {
           // Skip directories we can't read
         }
 
@@ -157,7 +157,7 @@ describe('Logger Path Processing', () => {
       }
 
       return searchForFile(gitRoot, relativePath);
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -380,7 +380,7 @@ describe('Logger Path Processing', () => {
         return filePath.toString().includes('.git');
       });
 
-      const result = processPathFormat('webpack-internal:///src/test.ts');
+      processPathFormat('webpack-internal:///src/test.ts');
 
       // Should have called existsSync to look for .git
       expect(mockedFs.existsSync).toHaveBeenCalledWith(expect.stringContaining('.git'));

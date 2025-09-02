@@ -11,17 +11,17 @@ jest.mock('winston', () => {
     };
 
     return {
-      debug: jest.fn().mockImplementation((message, meta) => {
+      debug: jest.fn().mockImplementation((_message, _meta) => {
         // Winston would filter based on level - if not filtered, call gets recorded
         return shouldLog('debug');
       }),
-      info: jest.fn().mockImplementation((message, meta) => {
+      info: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('info');
       }),
-      warn: jest.fn().mockImplementation((message, meta) => {
+      warn: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('warn');
       }),
-      error: jest.fn().mockImplementation((message, meta) => {
+      error: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('error');
       }),
       add: jest.fn(),
@@ -33,7 +33,6 @@ jest.mock('winston', () => {
   };
 
   // Default mock logger for when specific level isn't known
-  const mockLogger = createMockLogger('debug');
 
   const formatMock: any = jest.fn(fn => {
     return (info: any) => {

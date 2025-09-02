@@ -11,16 +11,16 @@ jest.mock('winston', () => {
     };
 
     return {
-      debug: jest.fn().mockImplementation((message, meta) => {
+      debug: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('debug');
       }),
-      info: jest.fn().mockImplementation((message, meta) => {
+      info: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('info');
       }),
-      warn: jest.fn().mockImplementation((message, meta) => {
+      warn: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('warn');
       }),
-      error: jest.fn().mockImplementation((message, meta) => {
+      error: jest.fn().mockImplementation((_message, _meta) => {
         return shouldLog('error');
       }),
       add: jest.fn(),
