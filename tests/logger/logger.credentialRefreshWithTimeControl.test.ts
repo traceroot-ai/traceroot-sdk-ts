@@ -190,10 +190,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
         })
       );
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
-      );
-
       expect(mockWinstonLogger.info).toHaveBeenCalled();
     });
 
@@ -242,10 +238,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
         })
       );
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
-      );
-
       // Both logging calls should succeed (may be more due to credential refresh process)
       expect(mockWinstonLogger.info).toHaveBeenCalled();
     });
@@ -289,14 +281,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
             'Content-Type': 'application/json',
           },
         })
-      );
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
-      );
-
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] Successfully recreated CloudWatch transport with new credentials'
       );
 
       // All logging operations should succeed
@@ -343,10 +327,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
         })
       );
 
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
-      );
-
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[TraceRoot] Failed to refresh AWS credentials:',
         'API temporarily unavailable'
@@ -386,9 +366,6 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
 
       // Should trigger refresh at exactly the 30-minute mark
       expect(global.fetch).toHaveBeenCalled();
-      expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[TraceRoot] AWS credentials expired or expiring soon, refreshing...'
-      );
 
       expect(mockWinstonLogger.info).toHaveBeenCalled();
     });

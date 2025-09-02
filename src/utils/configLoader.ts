@@ -5,19 +5,20 @@ import { TraceRootConfigFile } from '../config';
 // Edge Runtime detection
 function isEdgeRuntime(): boolean {
   return (
-    typeof (globalThis as any).EdgeRuntime !== 'undefined' || process.env.NEXT_RUNTIME === 'edge'
+    typeof (globalThis as Record<string, unknown>).EdgeRuntime !== 'undefined' ||
+    process.env.NEXT_RUNTIME === 'edge'
   );
 }
 
 // Load config from environment variables for Edge Runtime
 export function loadConfigFromEnv(): TraceRootConfigFile {
-  const config: any = {
+  const config: Partial<TraceRootConfigFile> = {
     service_name: process.env.TRACEROOT_SERVICE_NAME || 'default-service',
     github_owner: process.env.TRACEROOT_GITHUB_OWNER || 'unknown',
     github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || 'unknown',
     github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'unknown',
     token: process.env.TRACEROOT_TOKEN || '',
-    log_level: (process.env.TRACEROOT_LOG_LEVEL as any) || 'debug',
+    log_level: (process.env.TRACEROOT_LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'debug',
   };
 
   // Only include optional properties if explicitly set in environment variables
@@ -85,7 +86,7 @@ function compileTypeScriptManually(tsContent: string, configPath: string): strin
     const ts = require('typescript');
 
     // Basic TypeScript compiler options for config files
-    const compilerOptions: any = {
+    const compilerOptions = {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2018,
       esModuleInterop: true,
@@ -117,7 +118,7 @@ export async function loadTypescriptConfig(
   }
 
   try {
-    let configModule: any;
+    let configModule: Record<string, unknown>;
 
     // Check if we're running with ts-node or if the file is .js/.mjs
     // TODO: Support other runtimes
@@ -130,8 +131,8 @@ export async function loadTypescriptConfig(
         require('ts-node').register({
           project: configPath,
         });
-      } catch (error) {
-        void error;
+      } catch (_error) {
+        void _error;
       }
       // Use require for TypeScript files when ts-node is available
       delete require.cache[configPath]; // Clear cache
@@ -234,8 +235,8 @@ export function loadTypescriptConfigSync(configPath: string | null): TraceRootCo
         require('ts-node').register({
           project: configPath,
         });
-      } catch (error) {
-        void error;
+      } catch (_error) {
+        void _error;
         // Try manual TypeScript compilation if TypeScript compiler is available
         if (isTypeScriptAvailable()) {
           return loadTypeScriptManually(configPath);
@@ -248,7 +249,7 @@ export function loadTypescriptConfigSync(configPath: string | null): TraceRootCo
     // Clear cache using the absolute path
     delete require.cache[configPath];
 
-    let configModule: any;
+    let configModule: Record<string, unknown>;
     try {
       // Try direct require first
       configModule = require(configPath);
@@ -278,8 +279,8 @@ export function loadTypescriptConfigSync(configPath: string | null): TraceRootCo
     }
 
     return config as TraceRootConfigFile;
-  } catch (error) {
-    void error;
+  } catch (_error) {
+    void _error;
     // If this was a TypeScript file and it failed, try manual compilation or fallback
     if (isTypeScript) {
       // Try manual TypeScript compilation if available
@@ -353,8 +354,9 @@ export function tryJavaScriptFallback(): TraceRootConfigFile | null {
         return result;
       }
     }
-  } catch (error) {
-    console.warn(`Failed to load config from TRACEROOT_CONFIG_PATH: ${error}`);
+  } catch (_error) {
+    void _error;
+    // Failed to load config from TRACEROOT_CONFIG_PATH
   }
 
   // Strategy 2: Try current working directory
@@ -371,12 +373,13 @@ export function tryJavaScriptFallback(): TraceRootConfigFile | null {
         }
       }
     }
-  } catch (error) {
-    console.warn(`Failed to load config from current directory: ${error}`);
+  } catch (_error) {
+    void _error;
+    // Failed to load config from current directory
   }
 
   // Strategy 3: Universal fallback to environment variables when all file loading fails
-  console.info('[TraceRoot] No config files found, attempting to load from environment variables');
+  // No config files found, attempting to load from environment variables
   return loadConfigFromEnv();
 }
 
@@ -390,7 +393,7 @@ function loadJavaScriptConfig(configPath: string): TraceRootConfigFile | null {
     delete require.cache[configPath];
     delete require.cache[absolutePath];
 
-    let configModule: any;
+    let configModule: Record<string, unknown>;
 
     // Always use manual file reading to avoid Node.js module cache issues in tests
     // This ensures we read the latest content from disk
@@ -420,8 +423,9 @@ function loadJavaScriptConfig(configPath: string): TraceRootConfigFile | null {
     }
 
     return config as TraceRootConfigFile;
-  } catch (error) {
-    console.warn(`Failed to load JavaScript config ${configPath}: ${error}`);
+  } catch (_error) {
+    void _error;
+    // Failed to load JavaScript config
     return null;
   }
 }

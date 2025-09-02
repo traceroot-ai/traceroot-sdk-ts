@@ -14,7 +14,7 @@ export function autoInitialize(): boolean {
     const configResult = findAndLoadConfigSync();
 
     if (!configResult) {
-      console.debug('[TraceRoot] No config file found, initializing with default configuration');
+      // No config file found, initializing with default configuration
       // Load default configuration from environment variables
       const { loadConfigFromEnv } = require('./utils/configLoader');
       const defaultConfig = loadConfigFromEnv();
@@ -54,8 +54,9 @@ export function autoInitialize(): boolean {
     }
 
     return false;
-  } catch (error) {
-    console.debug('[TraceRoot] Auto-initialization failed:', error);
+  } catch (_error) {
+    void _error;
+    // Auto-initialization failed
     return false;
   }
 }

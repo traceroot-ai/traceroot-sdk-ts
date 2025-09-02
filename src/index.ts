@@ -200,6 +200,6 @@ if (shouldAutoInitialize()) {
     _autoInitialize();
   } catch (error) {
     // Silently fail auto-initialization - users can still call init() manually
-    console.debug('[TraceRoot] Auto-initialization failed:', error);
+    console.error('[TraceRoot] Error during auto-initialization:', error);
   }
 }

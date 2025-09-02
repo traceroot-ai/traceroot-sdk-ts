@@ -74,14 +74,15 @@ function fetchWithNodeBuiltinsSync(apiUrl: string): string | null {
 
         res.on('end', () => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(data);
+            // Data received successfully
           } else {
             process.exit(1);
           }
         });
       });
 
-      req.on('error', () => {
+      req.on('error', (error) => {
+        console.error('[TraceRoot] Credential fetch request failed:', error.message);
         process.exit(1);
       });
 
@@ -118,7 +119,6 @@ function fetchWithNodeBuiltinsSync(apiUrl: string): string | null {
  */
 export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredentials | null {
   if (!config.token) {
-    console.log('[TraceRoot] No token provided, skipping AWS credentials fetch');
     return null;
   }
 
@@ -147,8 +147,6 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
           // Failed to parse JSON, try fallback
         }
       }
-    } else {
-      console.log('[TraceRoot] curl not available, trying Node.js built-in fallback');
     }
 
     // Try Node.js built-in modules as fallback
@@ -172,10 +170,9 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
         // Failed to parse JSON
       }
     }
-    console.log('[TraceRoot] All credential fetch methods failed');
     return null;
   } catch (error: any) {
-    console.log('[TraceRoot] Error in fetchAwsCredentialsSync:', error.message);
+    console.error('[TraceRoot] Error in credential fetch:', error.message);
     return null;
   }
 }

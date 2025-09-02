@@ -669,7 +669,6 @@ export class TraceRootLogger {
       // Step 1: Add the new transport to the logger (both transports will be active temporarily)
       try {
         this.logger.add(newCloudWatchTransport);
-        console.log('[TraceRoot] Added new CloudWatch transport with refreshed credentials');
 
         // Step 2 & 3: Handle old transport cleanup if it exists
         if (this.cloudWatchTransport) {
@@ -683,9 +682,7 @@ export class TraceRootLogger {
                 // Step 3: Remove old transport after flush completes
                 try {
                   this.logger.remove(oldTransport);
-                  console.log(
-                    '[TraceRoot] Successfully flushed and removed old CloudWatch transport'
-                  );
+                  // Successfully flushed and removed old CloudWatch transport
                 } catch (removeError: any) {
                   console.error(
                     '[TraceRoot] Failed to remove old CloudWatch transport:',
@@ -701,7 +698,7 @@ export class TraceRootLogger {
               // Fallback: remove without flush if flush fails
               try {
                 this.logger.remove(oldTransport);
-                console.log('[TraceRoot] Removed old CloudWatch transport (flush failed)');
+                // Removed old CloudWatch transport (flush failed)
               } catch (removeError: any) {
                 console.error(
                   '[TraceRoot] Failed to remove old CloudWatch transport:',
@@ -713,9 +710,7 @@ export class TraceRootLogger {
             // Fallback: if no flush method available, remove directly
             try {
               this.logger.remove(oldTransport);
-              console.log(
-                '[TraceRoot] Removed old CloudWatch transport (no flush method available)'
-              );
+              // Removed old CloudWatch transport (no flush method available)
             } catch (removeError: any) {
               console.error(
                 '[TraceRoot] Failed to remove old CloudWatch transport:',
@@ -727,7 +722,7 @@ export class TraceRootLogger {
 
         // Update the reference to the new transport
         this.cloudWatchTransport = newCloudWatchTransport;
-        console.log('[TraceRoot] Successfully recreated CloudWatch transport with new credentials');
+        // Successfully recreated CloudWatch transport with new credentials
       } catch (addError: any) {
         console.error(
           '[TraceRoot] Failed to add CloudWatch transport to logger:',
@@ -1461,7 +1456,7 @@ async function checkAndRefreshGlobalCredentials(): Promise<AwsCredentials | null
   }
 
   if (now.getTime() >= expirationTime.getTime() - bufferTime) {
-    console.log('[TraceRoot] AWS credentials expired or expiring soon, refreshing...');
+    // AWS credentials expired or expiring soon, refreshing...
 
     // If there's already a refresh in progress, wait for it
     if (_credentialsRefreshPromise) {
@@ -1486,7 +1481,7 @@ async function checkAndRefreshGlobalCredentials(): Promise<AwsCredentials | null
  */
 async function refreshGlobalCredentials(): Promise<AwsCredentials | null> {
   if (!_globalConfig || !_globalConfig.token) {
-    console.log('[TraceRoot] No token provided, cannot refresh credentials');
+    // No token provided, cannot refresh credentials
     return null;
   }
 
@@ -1536,7 +1531,7 @@ async function refreshGlobalCredentials(): Promise<AwsCredentials | null> {
       }
     }
 
-    console.log('[TraceRoot] Global credentials refreshed successfully');
+    // Global credentials refreshed successfully
     return credentialsData;
   } catch (error: any) {
     console.error('[TraceRoot] Failed to refresh AWS credentials:', error.message);

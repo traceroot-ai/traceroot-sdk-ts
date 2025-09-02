@@ -34,8 +34,9 @@ export async function findAndLoadConfig(): Promise<{
           source: 'typescript',
         };
       }
-    } catch (error) {
-      console.warn(`[TraceRoot] Failed to load TypeScript config: ${error}`);
+    } catch (_error) {
+      void _error;
+      // Failed to load TypeScript config
     }
   }
   return null;
@@ -70,8 +71,9 @@ export function findAndLoadConfigSync(): {
           source: 'typescript',
         };
       }
-    } catch (error) {
-      console.warn(`[TraceRoot] Failed to load TypeScript config: ${error}`);
+    } catch (_error) {
+      void _error;
+      // Failed to load TypeScript config
     }
   }
   return null;

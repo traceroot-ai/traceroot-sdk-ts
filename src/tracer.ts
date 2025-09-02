@@ -55,7 +55,6 @@ export class TraceOptionsImpl implements TraceOptions {
 export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
   // Check if already initialized
   if (_tracerProvider !== null) {
-    console.log('[TraceRoot] Tracer already initialized, returning existing instance');
     return _tracerProvider;
   }
   // Merge file config with kwargs (kwargs take precedence)
@@ -93,15 +92,10 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
       if (config.enable_log_cloud_export) {
         (config as any)._awsCredentials = credentials;
       }
-    } else {
-      console.log(`[TraceRoot] Using default configuration (no AWS credentials)`);
     }
   } else if (!config.enable_span_cloud_export) {
-    console.log(`[TraceRoot] Span cloud export disabled - skipping AWS credentials fetch`);
     // If span cloud export is disabled, also disable log cloud export
     config.enable_log_cloud_export = false;
-  } else {
-    console.log(`[TraceRoot] Local mode enabled - skipping AWS credentials fetch`);
   }
 
   // Update the global config with full config object
@@ -249,6 +243,7 @@ export function shutdownTracer(): Promise<void> {
       })
       .catch((error: any) => {
         // Ensure cleanup happens even if shutdown fails
+        console.error('[TraceRoot] Error during tracer shutdown:', error.message);
         _tracerProvider = null;
         _config = null;
         _isShuttingDown = false;
