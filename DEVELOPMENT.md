@@ -13,6 +13,12 @@ npm run test # Run tests
 npm test -- tests/logger/logger.pathProcessing.test.ts # Run a specific test
 ```
 
+## Run example
+
+```bash
+npx ts-node --transpile-only examples/log-level-example.ts
+```
+
 ## Publish to npm
 
 ```bash
