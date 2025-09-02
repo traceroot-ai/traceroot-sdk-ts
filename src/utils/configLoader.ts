@@ -18,7 +18,18 @@ export function loadConfigFromEnv(): TraceRootConfigFile {
     github_repo_name: process.env.TRACEROOT_GITHUB_REPO_NAME || 'unknown',
     github_commit_hash: process.env.TRACEROOT_GITHUB_COMMIT_HASH || 'unknown',
     token: process.env.TRACEROOT_TOKEN || '',
-    log_level: (process.env.TRACEROOT_LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'debug',
+    log_level:
+      (process.env.TRACEROOT_LOG_LEVEL as
+        | 'debug'
+        | 'info'
+        | 'warn'
+        | 'error'
+        | 'silent'
+        | 'DEBUG'
+        | 'INFO'
+        | 'WARN'
+        | 'ERROR'
+        | 'SILENT') || 'debug',
   };
 
   // Only include optional properties if explicitly set in environment variables

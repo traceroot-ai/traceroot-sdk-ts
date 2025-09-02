@@ -922,7 +922,7 @@ export class TraceRootLogger {
     if (this.consoleLogger) {
       try {
         // Pass only the user-provided metadata (from processLogArgs)
-        (this.consoleLogger as any)[level](`[TraceRoot] ${message}`, userMetadata || {});
+        (this.consoleLogger as any)[level](`${message}`, userMetadata || {});
       } catch (error: any) {
         console.error(`[TraceRoot] Console logger ${level} error:`, error?.message || error);
       }
@@ -1548,7 +1548,17 @@ async function refreshGlobalCredentials(): Promise<AwsCredentials | null> {
  */
 export function getLogger(
   name?: string,
-  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
+  logLevel?:
+    | 'debug'
+    | 'info'
+    | 'warn'
+    | 'error'
+    | 'silent'
+    | 'DEBUG'
+    | 'INFO'
+    | 'WARN'
+    | 'ERROR'
+    | 'SILENT'
 ): TraceRootLogger {
   if (_globalConfig === null) {
     throw new Error('Logger not initialized. Call TraceRoot.init() first.');
@@ -1571,7 +1581,7 @@ export function getLogger(
   const configWithOverride = logLevel
     ? {
         ..._globalConfig,
-        log_level: logLevel,
+        log_level: logLevel.toLowerCase() as 'debug' | 'info' | 'warn' | 'error' | 'silent',
       }
     : _globalConfig; // Use the global config directly when no override needed
 
@@ -1593,7 +1603,17 @@ export function getLogger(
  */
 export function get_logger(
   name?: string,
-  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent'
+  logLevel?:
+    | 'debug'
+    | 'info'
+    | 'warn'
+    | 'error'
+    | 'silent'
+    | 'DEBUG'
+    | 'INFO'
+    | 'WARN'
+    | 'ERROR'
+    | 'SILENT'
 ): TraceRootLogger {
   return getLogger(name, logLevel);
 }
