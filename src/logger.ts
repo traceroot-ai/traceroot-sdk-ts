@@ -766,7 +766,9 @@ export class TraceRootLogger {
               const colorizedLevel = info.level.includes('\x1b[')
                 ? info.level.replace(rawLevel, levelStr)
                 : levelStr;
-              return `${info.timestamp} [${colorizedLevel}]${loggerNameStr} ${info.message}${metaStr}`;
+              // Apply grey color to timestamp using ANSI escape code
+              const greyTimestamp = `\x1b[90m${info.timestamp}\x1b[0m`;
+              return `${greyTimestamp} [${colorizedLevel}]${loggerNameStr} ${info.message}${metaStr}`;
             })
           ),
           transports: [
