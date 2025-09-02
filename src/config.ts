@@ -37,8 +37,18 @@ export interface TraceRootConfig {
   // Local mode
   local_mode?: boolean;
 
-  // Logging configuration
-  log_level?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
+  // Logging configuration (case-insensitive)
+  log_level?:
+    | 'debug'
+    | 'info'
+    | 'warn'
+    | 'error'
+    | 'silent'
+    | 'DEBUG'
+    | 'INFO'
+    | 'WARN'
+    | 'ERROR'
+    | 'SILENT';
 
   // Internal properties (set during initialization)
   _name?: string;
@@ -121,7 +131,9 @@ export class TraceRootConfigImpl implements TraceRootConfig {
         ? config.enable_log_cloud_export
         : this.enable_log_cloud_export;
     this.local_mode = config.local_mode !== undefined ? config.local_mode : this.local_mode;
-    this.log_level = config.log_level || 'debug';
+    this.log_level =
+      (config.log_level?.toLowerCase() as 'debug' | 'info' | 'warn' | 'error' | 'silent') ||
+      'debug';
 
     this._name = this.name;
     this._sub_name = `${this.service_name}-${this.environment}`;
