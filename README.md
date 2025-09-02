@@ -17,109 +17,18 @@
 
 Please see [TypeScript SDK Docs](https://docs.traceroot.ai/sdk/typescript) for details
 
-## Introduction
-
-This SDK allows you to trace functions and utilizes TraceRoot's own logger within the TraceRoot trace. It captures all the context designed for advanced debugging of AI agents.
-
-### OpenTelemetry
-
-The trace is built upon OpenTelemetry, and the traces will be sent to TraceRoot's own endpoint.
-
-### Winston
-
-The logger is based on Winston, designed for integration with CloudWatch. And currently the logs will be stored in AWS.
-
 ## Installation
 
 ```bash
 npm install traceroot-sdk-ts@latest
 ```
 
-## Configuration
-
-At first you need to create a `traceroot.config.ts` file in the root of your project:
-
-```typescript
-import type { TraceRootConfigFile } from 'traceroot-sdk-ts/src/config';
-
-const config: TraceRootConfigFile = {
-  // Basic service configuration
-  service_name: 'ts-example',
-  github_owner: 'traceroot-ai',
-  github_repo_name: 'traceroot-sdk-ts',
-  github_commit_hash: 'main',
-
-  // Your environment configuration such as development, staging, production
-  environment: 'development',
-
-  // Token configuration
-  // This is the token you can generate from the TraceRoot.AI website
-  token: 'traceroot-***********************',
-
-  // Whether to enable console export of spans and logs
-  enable_span_console_export: false,
-  enable_log_console_export: true,
-
-  // Local mode that whether to store all data locally
-  local_mode: false,
-};
-export default config;
-```
-
-An example is shown in the [traceroot.config.ts](./traceroot.config.ts) file.
-
-If you don't have TypeScript node and runtime installed, you can also use JavaScript config:
-
-```javascript
-const config = {
-    // Basic service configuration
-    service_name: 'js-example',
-    github_owner: 'traceroot-ai',
-    github_repo_name: 'traceroot-sdk',
-    github_commit_hash: 'main',
-
-    // Your environment configuration
-    // development, staging, production
-    environment: 'development',
-
-    // Token configuration
-    token: 'traceroot-*',
-
-    // Whether to enable console export of spans and logs
-    enable_span_console_export: false,
-    enable_log_console_export: true,
-
-    // Local mode that whether to store all data locally
-    local_mode: false,
-  };
-
-  module.exports = config;
-```
-
-An example is shown in the [traceroot.config.js](./traceroot.config.js) file.
-
-### Indicate the Location of the Config File
-
-Sometimes it's quite hard to find the config file in the project root due to webpack or other bundlers. You can set the `TRACEROOT_CONFIG_PATH` environment variable to indicate the location of the config file.
-
-```bash
-export TRACEROOT_CONFIG_PATH=/path/to/your/traceroot.config.ts
-```
-
-### Cloud and Console Export
-
-You can enable the cloud export of spans and logs by setting the `enable_span_cloud_export` and `enable_log_cloud_export` to `true`. By default, all those are set to `true`. If you set `enable_span_cloud_export` to `false`, the cloud export of spans will be disabled (it will also disable the cloud export of logs). If you set `enable_log_cloud_export` to `false`, only the cloud export of logs will be disabled.
-
-You can enable the console export of spans and logs by setting the `enable_span_console_export` and `enable_log_console_export` to `true`. Enable them will print out spans or logs in the console.
-
-## Usage
-
-Then you can use the `traceroot.traceFunction` to trace your functions:
+## Examples
 
 ```typescript
 import * as traceroot from 'traceroot-sdk-ts';
 
-const logger = traceroot.getLogger();
+const logger = traceroot.get_logger();
 
 async function main() {
   const greet = traceroot.traceFunction(
@@ -143,137 +52,6 @@ main().then(async () => {
   await traceroot.shutdownLogger();
   process.exit(0);
 });
-```
-
-Or just use the decorator such as:
-
-```typescript
-import * as traceroot from 'traceroot-sdk-ts';
-
-const logger = traceroot.getLogger();
-
-class GreetingService {
-  // @ts-ignore - TypeScript has strict typing issues with decorators, but this works at runtime
-  @traceroot.trace({ spanName: 'greet' })
-  async greet(name: string): Promise<string> {
-    logger.info(`Greeting inside traced function: ${name}`);
-    // Simulate some async work
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return `Hello, ${name}!`;
-  }
-}
-
-async function main() {
-  const service = new GreetingService();
-  const result = await service.greet('world');
-  logger.info(`Greeting result: ${result}`); // This will not be shown in TraceRoot UI
-}
-
-main().then(async () => {
-  await traceroot.forceFlushTracer();
-  await traceroot.shutdownTracing();
-  await traceroot.forceFlushLogger();
-  await traceroot.shutdownLogger();
-  process.exit(0);
-});
-```
-
-### Logging with Metadata
-
-You can also log with some metadata and make it searchable in the TraceRoot UI via:
-
-```typescript
-logger.info({ requestId, userId }, `Making another request`);
-// or
-logger.info({ userId }, `Making another request`, { requestId });
-```
-
-If you choose to log with metadata, you can search for it in the TraceRoot UI. Here is an example:
-
-```typescript
-import * as traceroot from 'traceroot-sdk-ts';
-
-const logger = traceroot.getLogger();
-
-async function main() {
-  const makeRequest = traceroot.traceFunction(
-    async function makeRequest(requestId: string, userId: string): Promise<string> {
-      // This will store the userId as a metadata attribute in the span so you can search for it in the TraceRoot UI
-      logger.info({ userId }, `Making request: ${requestId}`);
-      logger.debug('Pure debug message');
-      await makeAnotherRequest(requestId, userId);
-      // Simulate some async work
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return `Request ${requestId} completed`;
-    },
-    { spanName: 'makeRequest', traceParams: true }
-  );
-  const result = await makeRequest('123', 'user123');
-  logger.info(`Request result: ${result}`); // This will not be shown in TraceRoot UI
-}
-
-async function makeAnotherRequest(requestId: string, userId: string) {
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  // This will store the requestId and userId as a metadata attribute in the span so you can search for it in the TraceRoot UI
-  logger.info({ userId, requestId }, `Making another request`);
-}
-
-main().then(async () => {
-  await traceroot.forceFlushTracer();
-  await traceroot.shutdownTracing();
-  await traceroot.forceFlushLogger();
-  await traceroot.shutdownLogger();
-  process.exit(0);
-});
-
-```
-
-More details can be found in the [examples](./examples).
-
-You can run following examples after modifying the `traceroot.config.ts` file:
-
-```bash
-npx ts-node --transpile-only examples/simple-example-sync.ts # Not working for now
-npx ts-node --transpile-only examples/simple-example.ts
-npx ts-node --transpile-only examples/simple-example-decorator.ts
-npx ts-node --transpile-only examples/example.ts
-npx ts-node --transpile-only examples/example-decorator.ts
-npx ts-node --transpile-only examples/child-logger-example.ts
-npx ts-node --transpile-only examples/log-level-example.ts
-```
-
-## Development
-
-```bash
-npm install
-npm run build
-npm run format
-npm run lint --fix
-npx prettier --write src tests examples
-npx prettier --write [JS-CONFIG-FILE]
-npm run test # Run tests
-npm test -- tests/logger/logger.pathProcessing.test.ts # Run a specific test
-```
-
-### Publish to npm
-
-```bash
-npm login
-npm run build
-npm pack --dry-run
-
-# Alpha (for testing)
-# For next alpha version
-npm version prerelease --preid=alpha  # 0.0.1-alpha.1
-npm publish --tag alpha
-npm dist-tag ls traceroot-sdk-ts
-# Add the latest version to the latest tag
-npm dist-tag add traceroot-sdk-ts@0.0.1-alpha.[version] latest
-
-npm view traceroot-sdk-ts
-
-# Install the alpha version
-npm install traceroot-sdk-ts@alpha
 ```
 
 ## Contact Us
