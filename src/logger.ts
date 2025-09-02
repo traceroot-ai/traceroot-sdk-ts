@@ -2,8 +2,28 @@
  * Enhanced logging with automatic trace correlation
  */
 
-import * as winston from 'winston';
-import WinstonCloudWatch from 'winston-cloudwatch';
+// Edge Runtime detection
+function isEdgeRuntime(): boolean {
+  return (
+    typeof (globalThis as any).EdgeRuntime !== 'undefined' ||
+    (typeof process !== 'undefined' && process.env && process.env.NEXT_RUNTIME === 'edge')
+  );
+}
+
+// Lazy loading function for Winston dependencies
+function getWinstonClasses() {
+  if (isEdgeRuntime()) {
+    return { winston: null, WinstonCloudWatch: null };
+  }
+  try {
+    const winston = require('winston');
+    const WinstonCloudWatch = require('winston-cloudwatch');
+    return { winston, WinstonCloudWatch };
+  } catch (error) {
+    console.warn('[TraceRoot] Failed to import Winston dependencies:', error);
+    return { winston: null, WinstonCloudWatch: null };
+  }
+}
 import { trace as otelTrace } from '@opentelemetry/api';
 import { TraceRootConfigImpl } from './config';
 import { AwsCredentials } from './types';
@@ -13,6 +33,11 @@ import { API_ENDPOINTS } from './constants';
  * Custom Winston format for trace correlation
  */
 const traceCorrelationFormat = (config: TraceRootConfigImpl, loggerName: string) => {
+  const { winston } = getWinstonClasses();
+  if (!winston) {
+    // Return a no-op formatter in Edge Runtime
+    return (info: any) => info;
+  }
   return winston.format((info: any, _opts?: any) => {
     // Stack trace should already be set by the logging method
     // Don't overwrite it if it's already set
@@ -266,6 +291,16 @@ function processPathFormat(filepath: string, config?: TraceRootConfigImpl): stri
  * This handles webpack-internal paths that need to be resolved to their actual location
  */
 function findActualFilePath(relativePath: string): string | null {
+  // In Edge Runtime, file system operations are not available
+  if (isEdgeRuntime()) {
+    return null;
+  }
+
+  // Check if process.cwd is available
+  if (typeof process === 'undefined' || typeof process.cwd !== 'function') {
+    return null;
+  }
+
   try {
     const fs = require('fs');
     const path = require('path');
@@ -513,11 +548,11 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
  * Enhanced logger with trace correlation and AWS integration
  */
 export class TraceRootLogger {
-  private logger: winston.Logger;
-  private consoleLogger: winston.Logger | null = null; // Separate logger for console output
+  private logger: any;
+  private consoleLogger: any | null = null; // Separate logger for console output
   private config: TraceRootConfigImpl;
   public loggerName: string;
-  private cloudWatchTransport: WinstonCloudWatch | null = null;
+  private cloudWatchTransport: any | null = null;
 
   // Child logger support
   private childContext: Record<string, any> = {};
@@ -565,26 +600,44 @@ export class TraceRootLogger {
         effectiveLevel = config.log_level;
       }
 
-      this.logger = winston.createLogger({
-        level: effectiveLevel,
-        format: winston.format.combine(
-          winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
-          traceCorrelationFormat(config, this.loggerName)(),
-          winston.format.errors({ stack: true }),
-          winston.format.json()
-        ),
-        defaultMeta: {
-          service_name: config.service_name,
-          github_commit_hash: config.github_commit_hash,
-          github_owner: config.github_owner,
-          github_repo_name: config.github_repo_name,
-          environment: config.environment,
-        },
-        transports: [],
-        // Explicitly handle all transport events
-        handleExceptions: false,
-        handleRejections: false,
-      });
+      // Get Winston classes
+      const { winston } = getWinstonClasses();
+
+      // In Edge Runtime, use console logging directly
+      if (isEdgeRuntime() || !winston) {
+        console.log(
+          '[TraceRoot] Failed to create console logger: A Node.js API is used (process.nextTick) which is not supported in the Edge Runtime.'
+        );
+        this.logger = {
+          debug: (msg: any, meta?: any) => console.debug(`[DEBUG] ${msg}`, meta || ''),
+          info: (msg: any, meta?: any) => console.info(`[INFO] ${msg}`, meta || ''),
+          warn: (msg: any, meta?: any) => console.warn(`[WARN] ${msg}`, meta || ''),
+          error: (msg: any, meta?: any) => console.error(`[ERROR] ${msg}`, meta || ''),
+          add: () => {}, // No-op for transport addition
+          transports: [],
+        } as any;
+      } else {
+        this.logger = winston.createLogger({
+          level: effectiveLevel,
+          format: winston.format.combine(
+            winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss,SSS' }),
+            traceCorrelationFormat(config, this.loggerName)(),
+            winston.format.errors({ stack: true }),
+            winston.format.json()
+          ),
+          defaultMeta: {
+            service_name: config.service_name,
+            github_commit_hash: config.github_commit_hash,
+            github_owner: config.github_owner,
+            github_repo_name: config.github_repo_name,
+            environment: config.environment,
+          },
+          transports: [],
+          // Explicitly handle all transport events
+          handleExceptions: false,
+          handleRejections: false,
+        });
+      }
     } catch (error: any) {
       console.error('[TraceRoot] Failed to create winston logger:', error?.message || error);
       // Create a minimal fallback logger that just uses console
@@ -626,6 +679,13 @@ export class TraceRootLogger {
    * 3) Remove old transport
    */
   private recreateCloudWatchTransport(credentials: AwsCredentials): void {
+    // Get Winston classes
+    const { WinstonCloudWatch } = getWinstonClasses();
+
+    if (!WinstonCloudWatch) {
+      return;
+    }
+
     try {
       // Create new AWS configuration with updated credentials
       const awsConfig: any = {
@@ -743,44 +803,54 @@ export class TraceRootLogger {
     // Console logger for debugging (works in both local and non-local modes)
     if (this.config.enable_log_console_export) {
       try {
-        // Create a separate logger specifically for console output - simple format with just user data
-        this.consoleLogger = winston.createLogger({
-          level: this.config.log_level,
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.colorize(),
-            winston.format.printf((info: any) => {
-              // Simple console format - timestamp, level, optional logger name, message, and user metadata
-              const loggerName = info.logger_name || this.loggerName;
-              const shouldIncludeLoggerName = loggerName && loggerName !== this.config.service_name;
+        const { winston } = getWinstonClasses();
+        // Skip Winston in Edge Runtime
+        if (isEdgeRuntime() || !winston) {
+          console.log(
+            '[TraceRoot] Failed to add null transport: A Node.js API is used (process.nextTick) which is not supported in the Edge Runtime.'
+          );
+          this.consoleLogger = null;
+        } else {
+          // Create a separate logger specifically for console output - simple format with just user data
+          this.consoleLogger = winston.createLogger({
+            level: this.config.log_level,
+            format: winston.format.combine(
+              winston.format.timestamp(),
+              winston.format.colorize(),
+              winston.format.printf((info: any) => {
+                // Simple console format - timestamp, level, optional logger name, message, and user metadata
+                const loggerName = info.logger_name || this.loggerName;
+                const shouldIncludeLoggerName =
+                  loggerName && loggerName !== this.config.service_name;
 
-              const userMeta = Object.keys(info)
-                .filter(key => !['level', 'message', 'timestamp', 'logger_name'].includes(key))
-                .reduce((obj, key) => {
-                  obj[key] = info[key];
-                  return obj;
-                }, {} as any);
+                const userMeta = Object.keys(info)
+                  .filter(key => !['level', 'message', 'timestamp', 'logger_name'].includes(key))
+                  .reduce((obj, key) => {
+                    obj[key] = info[key];
+                    return obj;
+                  }, {} as any);
 
-              const metaStr =
-                Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
-              const loggerNameStr = shouldIncludeLoggerName ? ` [${loggerName}]` : '';
-              // Extract level without ANSI color codes for uppercase conversion
-              const rawLevel = info.level.replace(/\x1b\[[0-9;]*m/g, '');
-              const levelStr = rawLevel.toUpperCase();
-              // Reapply colors if they existed
-              const colorizedLevel = info.level.includes('\x1b[')
-                ? info.level.replace(rawLevel, levelStr)
-                : levelStr;
-              return `${info.timestamp} [${colorizedLevel}]${loggerNameStr} ${info.message}${metaStr}`;
-            })
-          ),
-          transports: [
-            new winston.transports.Console({
-              handleExceptions: false,
-              handleRejections: false,
-            }),
-          ],
-        });
+                const metaStr =
+                  Object.keys(userMeta).length > 0 ? ` ${JSON.stringify(userMeta)}` : '';
+                const loggerNameStr = shouldIncludeLoggerName ? ` [${loggerName}]` : '';
+                // Extract level without ANSI color codes for uppercase conversion
+                const rawLevel = info.level.replace(/\x1b\[[0-9;]*m/g, '');
+                const levelStr = rawLevel.toUpperCase();
+                // Reapply colors if they existed
+                const colorizedLevel = info.level.includes('\x1b[')
+                  ? info.level.replace(rawLevel, levelStr)
+                  : levelStr;
+                return `${info.timestamp} [${colorizedLevel}]${loggerNameStr} ${info.message}${metaStr}`;
+              })
+            ),
+            transports: [
+              new winston.transports.Console({
+                handleExceptions: false,
+                handleRejections: false,
+              }),
+            ],
+          });
+        }
       } catch (error: any) {
         console.error('[TraceRoot] Failed to create console logger:', error?.message || error);
         this.consoleLogger = null;
@@ -796,6 +866,14 @@ export class TraceRootLogger {
   }
 
   private setupCloudWatchTransport(): void {
+    // Get Winston classes
+    const { WinstonCloudWatch } = getWinstonClasses();
+
+    // Skip CloudWatch setup in Edge Runtime
+    if (isEdgeRuntime() || !WinstonCloudWatch) {
+      return;
+    }
+
     try {
       // Check if credentials were already fetched during tracer initialization
       let credentials: AwsCredentials | null = (this.config as any)._awsCredentials || null;
@@ -851,6 +929,17 @@ export class TraceRootLogger {
     // For local mode or when cloud export is disabled, logs are handled by:
     // 1. Console output (if enable_log_console_export is true, handled in setupTransports)
     // 2. Direct span events (handled in addSpanEventDirectly)
+
+    // Get Winston classes
+    const { winston } = getWinstonClasses();
+
+    // Skip Winston operations in Edge Runtime
+    if (isEdgeRuntime() || !winston) {
+      console.log(
+        '[TraceRoot] Failed to add null transport: A Node.js API is used (process.nextTick) which is not supported in the Edge Runtime.'
+      );
+      return;
+    }
 
     // Always add a minimal null transport to prevent Winston warnings
     // Create a simple transport that does nothing but prevents "no transports" error

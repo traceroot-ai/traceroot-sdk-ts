@@ -1,11 +1,36 @@
 import { trace as otelTrace, SpanStatusCode, Span } from '@opentelemetry/api';
-import {
-  NodeTracerProvider,
-  BatchSpanProcessor,
-  SimpleSpanProcessor,
-  ConsoleSpanExporter,
-  NoopSpanProcessor,
-} from '@opentelemetry/sdk-trace-node';
+// Edge Runtime detection
+function isEdgeRuntime(): boolean {
+  return (
+    typeof (globalThis as any).EdgeRuntime !== 'undefined' ||
+    (typeof process !== 'undefined' && process.env && process.env.NEXT_RUNTIME === 'edge')
+  );
+}
+
+// Lazy loading function to get OpenTelemetry classes
+function getOpenTelemetryClasses() {
+  if (isEdgeRuntime()) {
+    // Use web/browser compatible OpenTelemetry packages for Edge Runtime
+    const webSdk = require('@opentelemetry/sdk-trace-base');
+    return {
+      TracerProviderClass: webSdk.BasicTracerProvider,
+      BatchSpanProcessor: webSdk.BatchSpanProcessor,
+      SimpleSpanProcessor: webSdk.SimpleSpanProcessor,
+      ConsoleSpanExporter: webSdk.ConsoleSpanExporter,
+      NoopSpanProcessor: webSdk.NoopSpanProcessor,
+    };
+  } else {
+    // Use Node.js specific packages for Node.js runtime
+    const nodeSdk = require('@opentelemetry/sdk-trace-node');
+    return {
+      TracerProviderClass: nodeSdk.NodeTracerProvider,
+      BatchSpanProcessor: nodeSdk.BatchSpanProcessor,
+      SimpleSpanProcessor: nodeSdk.SimpleSpanProcessor,
+      ConsoleSpanExporter: nodeSdk.ConsoleSpanExporter,
+      NoopSpanProcessor: nodeSdk.NoopSpanProcessor,
+    };
+  }
+}
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
@@ -20,7 +45,7 @@ import {
 } from './constants';
 
 // Global variables
-let _tracerProvider: NodeTracerProvider | null = null;
+let _tracerProvider: any | null = null;
 let _config: TraceRootConfigImpl | null = null;
 let _isShuttingDown: boolean = false;
 
@@ -52,12 +77,21 @@ export class TraceOptionsImpl implements TraceOptions {
  * This is the main entry point for setting up tracing and logging.
  * This will be called once at the start TraceRoot is imported and initialized.
  */
-export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
+export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): any {
   // Check if already initialized
   if (_tracerProvider !== null) {
     console.log('[TraceRoot] Tracer already initialized, returning existing instance');
     return _tracerProvider;
   }
+
+  // Get the appropriate OpenTelemetry classes for current runtime
+  const {
+    TracerProviderClass,
+    BatchSpanProcessor,
+    SimpleSpanProcessor,
+    ConsoleSpanExporter,
+    NoopSpanProcessor,
+  } = getOpenTelemetryClasses();
   // Merge file config with kwargs (kwargs take precedence)
   let configParams: Partial<TraceRootConfig> = kwargs;
 
@@ -109,7 +143,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
 
   // If both span exports are disabled, create minimal no-op tracer
   if (!config.enable_span_cloud_export && !config.enable_span_console_export) {
-    _tracerProvider = new NodeTracerProvider({
+    _tracerProvider = new TracerProviderClass({
       resource: Resource.default(),
       spanProcessors: [new NoopSpanProcessor()],
     });
@@ -174,7 +208,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   }
 
   // Create and configure the tracer provider with span processors
-  _tracerProvider = new NodeTracerProvider({
+  _tracerProvider = new TracerProviderClass({
     resource: resource,
     spanProcessors: spanProcessors,
   });
@@ -309,6 +343,12 @@ let _processHandlersSetup = false;
 function setupProcessExitHandlers(): void {
   // Only set up handlers once to avoid memory leaks in tests
   if (_processHandlersSetup || process.env.NODE_ENV === 'test') {
+    return;
+  }
+
+  // Skip process handlers in Edge Runtime where process.once is not available
+  if (typeof process === 'undefined' || typeof process.once !== 'function') {
+    _processHandlersSetup = true;
     return;
   }
 
