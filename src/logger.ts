@@ -469,11 +469,8 @@ function getStackTrace(config?: TraceRootConfigImpl): string {
     // Skip OpenTelemetry and internal framework files
     if (
       line.includes('AsyncLocalStorageContextManager') ||
-      line.includes('context.ts') ||
-      line.includes('Tracer.ts') ||
       line.includes('AsyncLocalStorage') ||
       line.includes('@opentelemetry') ||
-      line.includes('lib/') ||
       line.includes('logform') ||
       line.includes('traceroot-sdk-ts/src') ||
       line.includes('node_modules') ||
