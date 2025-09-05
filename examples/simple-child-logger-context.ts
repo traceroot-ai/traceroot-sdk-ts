@@ -29,6 +29,29 @@ const main = traceroot.traceFunction(
     });
     childLogger.info('testing traceroot');
     await childLogger.flush();
+
+    const childFunction = traceroot.traceFunction(
+      async function childFunction() {
+        const childLogger2 = logger.child({
+          context: {
+            body: {},
+            req: {
+              id: 'local_req_32Gfippaz6clrbxefN1HB6dkY4a',
+              env: 'live',
+              method: 'GET',
+              url: '/customers/108/data',
+              timestamp: 1757051959269,
+            },
+          },
+          message: 'GET /customers/108/data',
+        });
+        childLogger2.info('testing child logger 2');
+        await childLogger2.flush();
+      },
+      { spanName: 'childFunction', traceParams: false }
+    );
+
+    await childFunction();
   },
   { spanName: 'simpleChildLoggerContext', traceParams: false }
 );
