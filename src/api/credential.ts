@@ -17,6 +17,7 @@ function isCurlAvailable(): boolean {
     execSync('curl --version', { stdio: 'ignore', timeout: 1000 });
     return true;
   } catch {
+    console.error('[TraceRoot] Curl is not available');
     return false;
   }
 }
@@ -144,7 +145,7 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
           }
           return credentials;
         } catch {
-          // Failed to parse JSON, try fallback
+          // Failed to parse JSON using Curl, try fallback
         }
       }
     }
@@ -167,7 +168,7 @@ export function fetchAwsCredentialsSync(config: TraceRootConfigImpl): AwsCredent
         }
         return credentials;
       } catch {
-        // Failed to parse JSON
+        // Failed to parse JSON using Node
       }
     }
     return null;

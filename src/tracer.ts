@@ -50,7 +50,7 @@ export class TraceOptionsImpl implements TraceOptions {
  * Initialize TraceRoot tracing and logging (synchronous).
  *
  * This is the main entry point for setting up tracing and logging.
- * This will be called once at the start TraceRoot is imported and initialized.
+ * This will be called at least once at the start where TraceRoot is auto-initialized or manually initialized.
  */
 export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
   // Check if already initialized
@@ -179,6 +179,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   // Set up automatic cleanup on process exit
   setupProcessExitHandlers();
 
+  console.log('[TraceRoot] Tracer initialized');
   return _tracerProvider;
 }
 
@@ -192,12 +193,14 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
  */
 export function forceFlushTracer(): Promise<void> {
   if (_tracerProvider !== null) {
+    console.log('[TraceRoot] Flushing tracer');
     // Return a promise that never rejects to prevent unhandled rejections
     return _tracerProvider
       .forceFlush()
       .then(() => {})
-      .catch(() => {
+      .catch((error: any) => {
         // Silently ignore non-critical flush failures
+        console.error('[TraceRoot] Error flushing tracer', error);
       });
   }
   return Promise.resolve();
