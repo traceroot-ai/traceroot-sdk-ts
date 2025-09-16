@@ -288,11 +288,27 @@ function _prepareConfig(kwargs: Partial<TraceRootConfig> = {}): TraceRootConfigI
 
   // If not in local mode and cloud export is enabled, fetch AWS credentials
   if (!config.local_mode && config.enable_span_cloud_export) {
+    console.log(
+      `[TraceRoot DEBUG] Fetching credentials for token: ${config.token?.substring(0, 20)}...`
+    );
     const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
+    console.log(`[TraceRoot DEBUG] Credentials result:`, credentials ? 'success' : 'failed');
     if (credentials) {
+      console.log(`[TraceRoot DEBUG] Credentials object:`, JSON.stringify(credentials, null, 2));
+      console.log(`[TraceRoot DEBUG] Credential endpoint: ${credentials.otlp_endpoint}`);
+
       // Update config with fetched credentials
-      config._name = credentials.hash;
-      config.otlp_endpoint = credentials.otlp_endpoint;
+      if (credentials.hash) {
+        config._name = credentials.hash;
+      }
+
+      if (credentials.otlp_endpoint) {
+        config.otlp_endpoint = credentials.otlp_endpoint;
+      } else {
+        console.log(
+          `[TraceRoot DEBUG] No endpoint in credentials, keeping default: ${config.otlp_endpoint}`
+        );
+      }
 
       // Store credentials in config for logger to use later (only if cloud logging is enabled)
       if (config.enable_log_cloud_export) {
@@ -314,13 +330,19 @@ function _detectExistingProvider(): NodeTracerProvider | null {
   const existingProvider = otelTrace.getTracerProvider();
   const providerType = existingProvider?.constructor?.name;
 
-  // Only reuse if it's a real provider (not NoopTracerProvider or ProxyTracerProvider)
+  console.log(`[TraceRoot DEBUG] Checking for existing provider...`);
+  console.log(`[TraceRoot DEBUG] existingProvider:`, !!existingProvider);
+  console.log(`[TraceRoot DEBUG] providerType:`, providerType);
+  console.log(`[TraceRoot DEBUG] provider constructor:`, existingProvider?.constructor);
+
+  // Check if we have a real provider (including ProxyTracerProvider which wraps NodeTracerProvider)
   if (
     existingProvider &&
     providerType &&
     providerType !== 'NoopTracerProvider' &&
-    providerType !== 'ProxyTracerProvider' &&
-    (providerType === 'NodeTracerProvider' || providerType.includes('TracerProvider'))
+    (providerType === 'NodeTracerProvider' ||
+      providerType === 'ProxyTracerProvider' ||
+      providerType.includes('TracerProvider'))
   ) {
     console.log(
       `[TraceRoot] Detected existing OpenTelemetry provider (${providerType}), adding TraceRoot processors to send traces to both destinations`
@@ -328,6 +350,7 @@ function _detectExistingProvider(): NodeTracerProvider | null {
     return existingProvider as NodeTracerProvider;
   }
 
+  console.log(`[TraceRoot DEBUG] No compatible provider detected, creating new one`);
   return null;
 }
 
@@ -338,26 +361,134 @@ function _enhanceExistingProvider(
   existingProvider: NodeTracerProvider,
   config: TraceRootConfigImpl
 ): NodeTracerProvider {
-  // Get existing processors from the provider
-  const existingProcessors = (existingProvider as any)._spanProcessors || [];
+  console.log(
+    `[TraceRoot DEBUG] Enhancing existing provider type: ${existingProvider.constructor.name}`
+  );
 
   // Create TraceRoot's processors
   const traceRootProcessors = _createTraceRootProcessors(config);
+  console.log(`[TraceRoot DEBUG] Created ${traceRootProcessors.length} TraceRoot processors`);
 
-  // Combine existing and new processors
-  const allProcessors = [...existingProcessors, ...traceRootProcessors];
+  if (existingProvider.constructor.name === 'ProxyTracerProvider') {
+    // For ProxyTracerProvider, we need to wait for it to have a delegate
+    // or find another way to access the underlying provider
+    console.log(`[TraceRoot DEBUG] Attempting to access ProxyTracerProvider delegate...`);
 
-  // Get existing resource from the provider
-  const existingResource = (existingProvider as any)._resource || Resource.default();
+    // Log all properties to see what's available
+    console.log(
+      `[TraceRoot DEBUG] ProxyTracerProvider properties:`,
+      Object.getOwnPropertyNames(existingProvider)
+    );
+    console.log(
+      `[TraceRoot DEBUG] ProxyTracerProvider methods:`,
+      Object.getOwnPropertyNames(Object.getPrototypeOf(existingProvider))
+    );
 
-  // Create a new provider with combined processors
-  _tracerProvider = new NodeTracerProvider({
-    resource: existingResource,
-    spanProcessors: allProcessors,
-  });
+    // Use ProxyTracerProvider's getDelegate method
+    let actualProvider: NodeTracerProvider | null = null;
 
-  // Register the enhanced provider globally
-  _tracerProvider.register();
+    if (typeof (existingProvider as any).getDelegate === 'function') {
+      console.log(`[TraceRoot DEBUG] Using ProxyTracerProvider.getDelegate() method`);
+      const delegate = (existingProvider as any).getDelegate();
+      console.log(
+        `[TraceRoot DEBUG] getDelegate() returned:`,
+        delegate ? delegate.constructor?.name : 'null'
+      );
+
+      // Check if delegate is a real provider, not NoopTracerProvider
+      if (
+        delegate &&
+        delegate.constructor?.name !== 'NoopTracerProvider' &&
+        typeof delegate.addSpanProcessor === 'function'
+      ) {
+        actualProvider = delegate;
+        console.log(`[TraceRoot DEBUG] Using real delegate provider`);
+      } else {
+        console.log(
+          `[TraceRoot DEBUG] Delegate is NoopTracerProvider or invalid, will create TraceRoot-only provider`
+        );
+      }
+    }
+
+    // If getDelegate returns null, try direct property access as fallback
+    if (!actualProvider) {
+      console.log(`[TraceRoot DEBUG] getDelegate() returned null, trying property access`);
+      const possibleDelegates = [
+        (existingProvider as any)._delegate,
+        (existingProvider as any).delegate,
+        (existingProvider as any)._provider,
+        (existingProvider as any).provider,
+      ];
+
+      for (let i = 0; i < possibleDelegates.length; i++) {
+        const delegate = possibleDelegates[i];
+        console.log(
+          `[TraceRoot DEBUG] Checking delegate ${i}:`,
+          delegate ? delegate.constructor?.name : 'undefined'
+        );
+        if (delegate && typeof delegate.addSpanProcessor === 'function') {
+          actualProvider = delegate as NodeTracerProvider;
+          console.log(`[TraceRoot DEBUG] Found delegate with addSpanProcessor method`);
+          break;
+        }
+      }
+    }
+
+    if (actualProvider) {
+      // Check existing processors before adding TraceRoot ones
+      const existingProcessors = (actualProvider as any)._registeredSpanProcessors || [];
+      console.log(
+        `[TraceRoot DEBUG] Delegate has ${existingProcessors.length} existing processors before enhancement`
+      );
+
+      // Add TraceRoot processors to the real provider
+      for (const processor of traceRootProcessors) {
+        actualProvider.addSpanProcessor(processor);
+        console.log(
+          `[TraceRoot DEBUG] Added TraceRoot processor to existing provider via delegate`
+        );
+      }
+
+      // Check processors after adding TraceRoot ones
+      const finalProcessors = (actualProvider as any)._registeredSpanProcessors || [];
+      console.log(
+        `[TraceRoot DEBUG] Delegate now has ${finalProcessors.length} total processors after enhancement`
+      );
+
+      // Log processor types for debugging
+      finalProcessors.forEach((proc: any, index: number) => {
+        const exporterType = proc._exporter?.constructor?.name || 'unknown';
+        const exporterUrl = proc._exporter?.url || 'unknown';
+        const exporterHeaders = Object.keys(proc._exporter?.headers || {});
+        console.log(
+          `[TraceRoot DEBUG] Processor ${index}: ${proc.constructor?.name} with ${exporterType} exporter`
+        );
+        console.log(`[TraceRoot DEBUG]   URL: ${exporterUrl}`);
+        console.log(`[TraceRoot DEBUG]   Headers: [${exporterHeaders.join(', ')}]`);
+      });
+
+      _tracerProvider = actualProvider;
+    } else {
+      console.log(`[TraceRoot DEBUG] Could not access delegate, using TraceRoot-only provider`);
+      // Fallback: create TraceRoot-only provider without registering globally
+      _tracerProvider = new NodeTracerProvider({
+        resource: Resource.default().merge(
+          new Resource({
+            [ATTR_SERVICE_NAME]: config.service_name || 'traceroot-service',
+          })
+        ),
+        spanProcessors: traceRootProcessors,
+      });
+    }
+  } else {
+    // For real NodeTracerProvider, add processors directly
+    console.log(`[TraceRoot DEBUG] Adding processors to real NodeTracerProvider`);
+    for (const processor of traceRootProcessors) {
+      existingProvider.addSpanProcessor(processor);
+      console.log(`[TraceRoot DEBUG] Added TraceRoot processor to existing provider`);
+    }
+    _tracerProvider = existingProvider;
+  }
 
   setupProcessExitHandlers();
   console.log(
