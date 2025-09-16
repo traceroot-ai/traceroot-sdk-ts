@@ -24,9 +24,40 @@ if (process.env.AXIOM_TOKEN) {
     url: 'https://api.axiom.co/v1/traces',
     headers: {
       Authorization: `Bearer ${process.env.AXIOM_TOKEN}`,
-      'X-Axiom-Dataset': 'traceroot-example',
+      'X-Axiom-Dataset': 'test',
     },
   });
+
+  // Wrap the export method to add error logging with source identification
+  const originalExport = traceExporter.export.bind(traceExporter);
+  traceExporter.export = function (spans, resultCallback) {
+    console.log(
+      `[Axiom DEBUG] Attempting to export ${spans.length} spans to Axiom endpoint: https://api.axiom.co/v1/traces`
+    );
+
+    const wrappedCallback = (result: any) => {
+      if (result.code !== 0) {
+        console.error(`[Axiom ERROR] Axiom export failed:`, {
+          code: result.code,
+          error: result.error?.message || result.error,
+          endpoint: 'https://api.axiom.co/v1/traces',
+          source: 'Axiom',
+        });
+
+        // Check for 403 specifically
+        if (result.error?.message?.includes('403') || result.error?.toString().includes('403')) {
+          console.error(
+            `[Axiom ERROR] 403 Forbidden error from Axiom endpoint! Check AXIOM_TOKEN.`
+          );
+        }
+      } else {
+        console.log(`[Axiom DEBUG] Axiom export successful for ${spans.length} spans`);
+      }
+      resultCallback(result);
+    };
+
+    return originalExport(spans, wrappedCallback);
+  };
 
   // Creating a resource to identify your service in traces
   const resource = new Resource({

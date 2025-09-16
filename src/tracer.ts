@@ -370,115 +370,68 @@ function _enhanceExistingProvider(
   console.log(`[TraceRoot DEBUG] Created ${traceRootProcessors.length} TraceRoot processors`);
 
   if (existingProvider.constructor.name === 'ProxyTracerProvider') {
-    // For ProxyTracerProvider, we need to wait for it to have a delegate
-    // or find another way to access the underlying provider
-    console.log(`[TraceRoot DEBUG] Attempting to access ProxyTracerProvider delegate...`);
-
-    // Log all properties to see what's available
     console.log(
-      `[TraceRoot DEBUG] ProxyTracerProvider properties:`,
-      Object.getOwnPropertyNames(existingProvider)
-    );
-    console.log(
-      `[TraceRoot DEBUG] ProxyTracerProvider methods:`,
-      Object.getOwnPropertyNames(Object.getPrototypeOf(existingProvider))
+      `[TraceRoot DEBUG] ProxyTracerProvider detected - trying to add processors directly to proxy first`
     );
 
-    // Use ProxyTracerProvider's getDelegate method
-    let actualProvider: NodeTracerProvider | null = null;
-
-    if (typeof (existingProvider as any).getDelegate === 'function') {
-      console.log(`[TraceRoot DEBUG] Using ProxyTracerProvider.getDelegate() method`);
-      const delegate = (existingProvider as any).getDelegate();
+    // First, try adding processors directly to the ProxyTracerProvider
+    // This preserves the proxy's authentication and delegation logic
+    if (typeof (existingProvider as any).addSpanProcessor === 'function') {
       console.log(
-        `[TraceRoot DEBUG] getDelegate() returned:`,
-        delegate ? delegate.constructor?.name : 'null'
+        `[TraceRoot DEBUG] ProxyTracerProvider has addSpanProcessor method, using it directly`
       );
 
-      // Check if delegate is a real provider, not NoopTracerProvider
-      if (
-        delegate &&
-        delegate.constructor?.name !== 'NoopTracerProvider' &&
-        typeof delegate.addSpanProcessor === 'function'
-      ) {
-        actualProvider = delegate;
-        console.log(`[TraceRoot DEBUG] Using real delegate provider`);
-      } else {
-        console.log(
-          `[TraceRoot DEBUG] Delegate is NoopTracerProvider or invalid, will create TraceRoot-only provider`
-        );
+      for (const processor of traceRootProcessors) {
+        (existingProvider as any).addSpanProcessor(processor);
+        console.log(`[TraceRoot DEBUG] Added TraceRoot processor to ProxyTracerProvider`);
       }
-    }
 
-    // If getDelegate returns null, try direct property access as fallback
-    if (!actualProvider) {
-      console.log(`[TraceRoot DEBUG] getDelegate() returned null, trying property access`);
-      const possibleDelegates = [
-        (existingProvider as any)._delegate,
-        (existingProvider as any).delegate,
-        (existingProvider as any)._provider,
-        (existingProvider as any).provider,
-      ];
+      _tracerProvider = existingProvider;
+    } else {
+      console.log(
+        `[TraceRoot DEBUG] ProxyTracerProvider doesn't have addSpanProcessor, accessing delegate...`
+      );
 
-      for (let i = 0; i < possibleDelegates.length; i++) {
-        const delegate = possibleDelegates[i];
+      // Fallback: access delegate if proxy doesn't support addSpanProcessor
+      let actualProvider: NodeTracerProvider | null = null;
+
+      if (typeof (existingProvider as any).getDelegate === 'function') {
+        const delegate = (existingProvider as any).getDelegate();
         console.log(
-          `[TraceRoot DEBUG] Checking delegate ${i}:`,
-          delegate ? delegate.constructor?.name : 'undefined'
+          `[TraceRoot DEBUG] getDelegate() returned:`,
+          delegate ? delegate.constructor?.name : 'null'
         );
-        if (delegate && typeof delegate.addSpanProcessor === 'function') {
-          actualProvider = delegate as NodeTracerProvider;
-          console.log(`[TraceRoot DEBUG] Found delegate with addSpanProcessor method`);
-          break;
+
+        if (
+          delegate &&
+          delegate.constructor?.name !== 'NoopTracerProvider' &&
+          typeof delegate.addSpanProcessor === 'function'
+        ) {
+          actualProvider = delegate;
+          console.log(`[TraceRoot DEBUG] Using real delegate provider`);
         }
       }
-    }
 
-    if (actualProvider) {
-      // Check existing processors before adding TraceRoot ones
-      const existingProcessors = (actualProvider as any)._registeredSpanProcessors || [];
-      console.log(
-        `[TraceRoot DEBUG] Delegate has ${existingProcessors.length} existing processors before enhancement`
-      );
-
-      // Add TraceRoot processors to the real provider
-      for (const processor of traceRootProcessors) {
-        actualProvider.addSpanProcessor(processor);
+      if (actualProvider) {
+        console.log(`[TraceRoot DEBUG] Adding processors to delegate provider`);
+        for (const processor of traceRootProcessors) {
+          actualProvider.addSpanProcessor(processor);
+          console.log(`[TraceRoot DEBUG] Added TraceRoot processor to delegate`);
+        }
+        _tracerProvider = actualProvider;
+      } else {
         console.log(
-          `[TraceRoot DEBUG] Added TraceRoot processor to existing provider via delegate`
+          `[TraceRoot DEBUG] Could not access delegate, creating TraceRoot-only provider`
         );
+        _tracerProvider = new NodeTracerProvider({
+          resource: Resource.default().merge(
+            new Resource({
+              [ATTR_SERVICE_NAME]: config.service_name || 'traceroot-service',
+            })
+          ),
+          spanProcessors: traceRootProcessors,
+        });
       }
-
-      // Check processors after adding TraceRoot ones
-      const finalProcessors = (actualProvider as any)._registeredSpanProcessors || [];
-      console.log(
-        `[TraceRoot DEBUG] Delegate now has ${finalProcessors.length} total processors after enhancement`
-      );
-
-      // Log processor types for debugging
-      finalProcessors.forEach((proc: any, index: number) => {
-        const exporterType = proc._exporter?.constructor?.name || 'unknown';
-        const exporterUrl = proc._exporter?.url || 'unknown';
-        const exporterHeaders = Object.keys(proc._exporter?.headers || {});
-        console.log(
-          `[TraceRoot DEBUG] Processor ${index}: ${proc.constructor?.name} with ${exporterType} exporter`
-        );
-        console.log(`[TraceRoot DEBUG]   URL: ${exporterUrl}`);
-        console.log(`[TraceRoot DEBUG]   Headers: [${exporterHeaders.join(', ')}]`);
-      });
-
-      _tracerProvider = actualProvider;
-    } else {
-      console.log(`[TraceRoot DEBUG] Could not access delegate, using TraceRoot-only provider`);
-      // Fallback: create TraceRoot-only provider without registering globally
-      _tracerProvider = new NodeTracerProvider({
-        resource: Resource.default().merge(
-          new Resource({
-            [ATTR_SERVICE_NAME]: config.service_name || 'traceroot-service',
-          })
-        ),
-        spanProcessors: traceRootProcessors,
-      });
     }
   } else {
     // For real NodeTracerProvider, add processors directly
@@ -565,6 +518,35 @@ function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
     const traceExporter = new OTLPTraceExporter({
       url: config.otlp_endpoint,
     });
+
+    // Wrap the export method to add error logging with source identification
+    const originalExport = traceExporter.export.bind(traceExporter);
+    traceExporter.export = function (spans, resultCallback) {
+      console.log(
+        `[TraceRoot DEBUG] Attempting to export ${spans.length} spans to TraceRoot endpoint: ${config.otlp_endpoint}`
+      );
+
+      const wrappedCallback = (result: any) => {
+        if (result.code !== 0) {
+          console.error(`[TraceRoot ERROR] TraceRoot export failed:`, {
+            code: result.code,
+            error: result.error?.message || result.error,
+            endpoint: config.otlp_endpoint,
+            source: 'TraceRoot',
+          });
+
+          // Check for 403 specifically
+          if (result.error?.message?.includes('403') || result.error?.toString().includes('403')) {
+            console.error(`[TraceRoot ERROR] 403 Forbidden error from TraceRoot endpoint!`);
+          }
+        } else {
+          console.log(`[TraceRoot DEBUG] TraceRoot export successful for ${spans.length} spans`);
+        }
+        resultCallback(result);
+      };
+
+      return originalExport(spans, wrappedCallback);
+    };
 
     // Create span processor
     const spanProcessor = config.local_mode
