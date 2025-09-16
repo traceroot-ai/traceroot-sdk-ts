@@ -1,4 +1,4 @@
-import { trace as otelTrace, SpanStatusCode, Span } from '@opentelemetry/api';
+import { trace as otelTrace, SpanStatusCode, Span, context } from '@opentelemetry/api';
 import {
   NodeTracerProvider,
   BatchSpanProcessor,
@@ -55,6 +55,64 @@ export class TraceOptionsImpl implements TraceOptions {
 export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeTracerProvider {
   // Check if already initialized
   if (_tracerProvider !== null) {
+    return _tracerProvider;
+  }
+
+  // Check if there's already a global tracer provider registered
+  const existingProvider = otelTrace.getTracerProvider();
+  const providerType = existingProvider?.constructor?.name;
+
+  // Only reuse if it's a real provider (not NoopTracerProvider or ProxyTracerProvider)
+  if (
+    existingProvider &&
+    providerType !== 'NoopTracerProvider' &&
+    providerType !== 'ProxyTracerProvider' &&
+    providerType === 'NodeTracerProvider'
+  ) {
+    console.log(
+      '[TraceRoot] Detected existing OpenTelemetry provider, adding TraceRoot processors to send traces to both destinations'
+    );
+
+    // Use the existing provider and add our processors
+    _tracerProvider = existingProvider as NodeTracerProvider;
+
+    // Set up full config (reuse the same logic as below)
+    const configParams: Partial<TraceRootConfig> = {
+      service_name: kwargs.service_name || 'default-service',
+      github_owner: kwargs.github_owner || 'unknown',
+      github_repo_name: kwargs.github_repo_name || 'unknown',
+      github_commit_hash: kwargs.github_commit_hash || 'unknown',
+      ...kwargs,
+    };
+
+    const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
+
+    // Fetch credentials and add TraceRoot processors using the same logic
+    if (!config.local_mode && config.enable_span_cloud_export) {
+      const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
+      if (credentials) {
+        config._name = credentials.hash;
+        config.otlp_endpoint = credentials.otlp_endpoint;
+        if (config.enable_log_cloud_export) {
+          (config as any)._awsCredentials = credentials;
+        }
+      }
+    } else if (!config.enable_span_cloud_export) {
+      config.enable_log_cloud_export = false;
+    }
+
+    _config = config;
+
+    // Add TraceRoot's processors to the existing provider (reuse processor creation logic below)
+    const traceRootProcessors = _createSpanProcessors(config);
+    traceRootProcessors.forEach(processor => {
+      _tracerProvider!.addSpanProcessor(processor);
+    });
+
+    setupProcessExitHandlers();
+    console.log(
+      '[TraceRoot] Tracer initialized (enhanced existing provider with TraceRoot processors)'
+    );
     return _tracerProvider;
   }
   // Merge file config with kwargs (kwargs take precedence)
@@ -123,48 +181,12 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
     })
   );
 
-  // Prepare span processors array
-  const spanProcessors = [];
+  // Create span processors using the helper function
+  const spanProcessors = _createSpanProcessors(config);
 
-  // Create main span processor based on cloud export configuration
-  if (config.enable_span_cloud_export) {
-    // Create trace exporter for cloud export
-    const traceExporter = new OTLPTraceExporter({
-      url: config.otlp_endpoint,
-    });
-
-    // Create span processor
-    // Local mode: use SimpleSpanProcessor for immediate export when span ends
-    // This ensures spans are only exported when their function actually completes
-    // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
-    const spanProcessor = config.local_mode
-      ? new SimpleSpanProcessor(traceExporter)
-      : new BatchSpanProcessor(traceExporter, {
-          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-        });
-
-    spanProcessors.push(spanProcessor);
-  } else {
-    // Use NoopSpanProcessor when cloud export is disabled
+  // If no processors created (all exports disabled), add NoopSpanProcessor
+  if (spanProcessors.length === 0) {
     spanProcessors.push(new NoopSpanProcessor());
-  }
-
-  // If console export is enabled, add console span processor with same type as main processor
-  // This will log the spans to the console for debugging purposes etc.
-  if (config.enable_span_console_export) {
-    const consoleExporter = new ConsoleSpanExporter();
-    const consoleProcessor = config.local_mode
-      ? new SimpleSpanProcessor(consoleExporter)
-      : new BatchSpanProcessor(consoleExporter, {
-          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-        });
-    spanProcessors.push(consoleProcessor);
   }
 
   // Create and configure the tracer provider with span processors
@@ -199,8 +221,9 @@ export function forceFlushTracer(): Promise<void> {
       .forceFlush()
       .then(() => {})
       .catch((error: any) => {
-        // Silently ignore non-critical flush failures
-        console.error('[TraceRoot] Error flushing tracer', error);
+        // Don't silently ignore - show flush failures for debugging
+        console.error('[TraceRoot] Error flushing tracer:', error);
+        console.error('[TraceRoot] This indicates spans may not be exported to cloud');
       });
   }
   return Promise.resolve();
@@ -344,6 +367,13 @@ export function getConfig(): TraceRootConfigImpl | null {
 }
 
 /**
+ * Get the internal tracer provider for debugging/extension purposes
+ */
+export function getTracerProvider(): NodeTracerProvider | null {
+  return _tracerProvider;
+}
+
+/**
  * Decorator for tracing function execution.
  */
 export function trace(options: TraceOptions = {}) {
@@ -368,6 +398,54 @@ export function traceFunction<T extends (...args: any[]) => any>(
   return ((...args: any[]) => {
     return _traceFunction(fn, traceOptions, null, args);
   }) as T;
+}
+
+/**
+ * Helper function to create span processors for TraceRoot
+ */
+function _createSpanProcessors(config: TraceRootConfigImpl): any[] {
+  const spanProcessors = [];
+
+  // Create main span processor based on cloud export configuration
+  if (config.enable_span_cloud_export) {
+    console.log(`[TraceRoot] Creating OTLP exporter for: ${config.otlp_endpoint}`);
+
+    // Create trace exporter for cloud export
+    const traceExporter = new OTLPTraceExporter({
+      url: config.otlp_endpoint,
+    });
+
+    // Create span processor
+    const spanProcessor = config.local_mode
+      ? new SimpleSpanProcessor(traceExporter)
+      : new BatchSpanProcessor(traceExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
+
+    spanProcessors.push(spanProcessor);
+    console.log(`[TraceRoot] Added OTLP span processor to export queue`);
+  } else {
+    console.log(`[TraceRoot] Cloud export disabled - no OTLP processor created`);
+  }
+
+  // If console export is enabled, add console span processor
+  if (config.enable_span_console_export) {
+    const consoleExporter = new ConsoleSpanExporter();
+    const consoleProcessor = config.local_mode
+      ? new SimpleSpanProcessor(consoleExporter)
+      : new BatchSpanProcessor(consoleExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
+    spanProcessors.push(consoleProcessor);
+  }
+
+  return spanProcessors;
 }
 
 /**
@@ -405,7 +483,7 @@ function _finalizeSpanError(span: Span, error: any): void {
 }
 
 /**
- * Internal function for tracing execution
+ * Internal function for tracing execution with fixed async context handling
  */
 function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, args: any[]): any {
   // No-op if tracing is not initialized
@@ -416,7 +494,7 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
   const tracer = otelTrace.getTracer(TRACER_NAME);
   const spanName = options.getSpanName(fn);
 
-  return tracer.startActiveSpan(spanName, (span: Span) => {
+  return _startActiveSpanAsync(tracer, spanName, (span: Span) => {
     try {
       // Set AWS X-Ray annotations as individual attributes
       if (!_config!.local_mode && _config!._name) {
@@ -455,6 +533,44 @@ function _traceFunction(fn: Function, options: TraceOptionsImpl, thisArg: any, a
       return _finalizeSpanSuccess(span, result, options);
     } catch (error: any) {
       _finalizeSpanError(span, error);
+      throw error;
+    }
+  });
+}
+
+/**
+ * Custom async-aware startActiveSpan implementation that properly handles Promise returns
+ * This fixes the context corruption issue by waiting for async operations to complete
+ * before restoring the previous context.
+ */
+function _startActiveSpanAsync<T>(tracer: any, spanName: string, callback: (span: any) => T): T {
+  const span = tracer.startSpan(spanName);
+  const newContext = otelTrace.setSpan(context.active(), span);
+
+  return context.with(newContext, () => {
+    try {
+      const result = callback(span);
+
+      // Check if result is a Promise
+      if (result && typeof (result as any).then === 'function') {
+        // For async operations: return a Promise that maintains context until completion
+        return (result as any)
+          .then((value: any) => {
+            // Context is maintained throughout the async operation
+            // Span cleanup happens in _finalizeSpanSuccess
+            return value;
+          })
+          .catch((error: any) => {
+            // Context is maintained even for errors
+            // Span cleanup happens in _finalizeSpanError
+            throw error;
+          }) as T;
+      }
+
+      // For sync operations: return immediately
+      return result;
+    } catch (error) {
+      // Synchronous errors are handled immediately
       throw error;
     }
   });
