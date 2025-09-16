@@ -81,6 +81,13 @@ export { isRecording } from './tracer';
 export { getActiveSpanInfo } from './tracer';
 
 /**
+ * Get the internal tracer provider for debugging/extension purposes.
+ *
+ * @returns The NodeTracerProvider instance or null if not initialized
+ */
+export { getTracerProvider } from './tracer';
+
+/**
  * Get a logger instance.
  *
  * @param name Optional logger name
