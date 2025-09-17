@@ -496,7 +496,7 @@ function _createNewProvider(config: TraceRootConfigImpl): NodeTracerProvider {
   // Set up automatic cleanup on process exit
   setupProcessExitHandlers();
 
-  console.log('[TraceRoot] Tracer initialized through new provider');
+  logVerbose(config, 'Tracer initialized through new provider');
   return _tracerProvider;
 }
 
@@ -544,7 +544,7 @@ function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
 
     spanProcessors.push(spanProcessor);
   } else {
-    console.error(`[TraceRoot] Cloud export disabled - no OTLP processor created`);
+    logVerbose(config, `Cloud export disabled - no OTLP processor created`);
   }
 
   // If console export is enabled, add console span processor

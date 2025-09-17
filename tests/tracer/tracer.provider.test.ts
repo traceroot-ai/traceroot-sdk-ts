@@ -71,6 +71,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
     enable_span_cloud_export: false,
     enable_log_console_export: true,
     token: 'test-token',
+    tracer_verbose: true,
     ...overrides,
   });
 
@@ -122,24 +123,26 @@ describe('Tracer Provider Detection and Enhancement', () => {
       consoleSpy.mockRestore();
     });
 
-    test('should not detect ProxyTracerProvider as existing provider', async () => {
+    test('should detect ProxyTracerProvider as existing provider', async () => {
       // Create a mock ProxyTracerProvider
       const proxyProvider = {
         constructor: { name: 'ProxyTracerProvider' },
         getTracer: jest.fn(),
+        addSpanProcessor: jest.fn(),
+        shutdown: jest.fn().mockImplementation(async () => {}),
       };
 
       // Mock getTracerProvider to return ProxyTracerProvider
       otelTrace.getTracerProvider = jest.fn().mockReturnValue(proxyProvider as any) as any;
 
-      // Spy on console.log to verify no detection message
+      // Spy on console.log to verify detection message
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
       const config = createTestConfig();
       traceroot.init(config);
 
-      // Verify that ProxyTracerProvider was not detected as existing
-      expect(consoleSpy).not.toHaveBeenCalledWith(
+      // Verify that ProxyTracerProvider was detected as existing
+      expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Detected existing OpenTelemetry provider (ProxyTracerProvider)')
       );
 
@@ -151,6 +154,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
       const customProvider = {
         constructor: { name: 'CustomTracerProvider' },
         getTracer: jest.fn(),
+        addSpanProcessor: jest.fn(),
         register: jest.fn(),
         forceFlush: jest.fn().mockImplementation(async () => {}),
         shutdown: jest.fn().mockImplementation(async () => {}),
@@ -191,7 +195,9 @@ describe('Tracer Provider Detection and Enhancement', () => {
       );
 
       // Should still log tracer initialization
-      expect(consoleSpy).toHaveBeenCalledWith('[TraceRoot] Tracer initialized');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[TraceRoot] Tracer initialized through new provider'
+      );
 
       consoleSpy.mockRestore();
     });
@@ -371,7 +377,9 @@ describe('Tracer Provider Detection and Enhancement', () => {
       traceroot.init(config);
 
       // Verify new provider was created (not enhanced)
-      expect(consoleSpy).toHaveBeenCalledWith('[TraceRoot] Tracer initialized');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[TraceRoot] Tracer initialized through new provider'
+      );
       expect(consoleSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('enhanced existing provider')
       );
@@ -569,6 +577,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
             return fn(mockSpan);
           }),
         }),
+        addSpanProcessor: jest.fn(),
         register: jest.fn(),
         forceFlush: jest.fn().mockImplementation(async () => {}),
         shutdown: jest.fn().mockImplementation(async () => {}),
@@ -642,6 +651,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
       const customNamedProvider = {
         constructor: { name: 'MyCustomTracerProvider' },
         getTracer: jest.fn(),
+        addSpanProcessor: jest.fn(),
         register: jest.fn(),
         forceFlush: jest.fn().mockImplementation(async () => {}),
         shutdown: jest.fn().mockImplementation(async () => {}),

@@ -96,6 +96,7 @@ describe('TraceRoot Logger Log Level Configuration', () => {
       aws_region: 'us-east-1',
       otlp_endpoint: 'http://localhost:4318',
       log_level: 'debug' as const,
+      tracer_verbose: false,
       _name: 'test-logger',
       _sub_name: 'test-sub-logger',
     };
