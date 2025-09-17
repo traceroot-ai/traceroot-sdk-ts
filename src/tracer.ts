@@ -10,6 +10,19 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { TraceRootConfig, TraceRootConfigImpl } from './config';
+
+// Helper functions for conditional logging
+function logVerbose(config: TraceRootConfigImpl, message: string, ...args: any[]): void {
+  if (config.tracer_verbose) {
+    console.log(`[TraceRoot] ${message}`, ...args);
+  }
+}
+
+function logVerboseError(config: TraceRootConfigImpl, message: string, ...args: any[]): void {
+  if (config.tracer_verbose) {
+    console.error(`[TraceRoot] ${message}`, ...args);
+  }
+}
 import { TraceOptions, AwsCredentials } from './types';
 import { fetchAwsCredentialsSync } from './api/credential';
 import {
@@ -63,7 +76,7 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   _config = config;
 
   // Check if there's already a global tracer provider registered
-  const existingProvider = _detectExistingProvider();
+  const existingProvider = _detectExistingProvider(config);
 
   if (existingProvider) {
     return _enhanceExistingProvider(existingProvider, config);
@@ -82,7 +95,9 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
  */
 export function forceFlushTracer(): Promise<void> {
   if (_tracerProvider !== null) {
-    console.log('[TraceRoot] Flushing tracer');
+    if (_config?.tracer_verbose) {
+      console.log('[TraceRoot] Flushing tracer');
+    }
     // Return a promise that never rejects to prevent unhandled rejections
     return _tracerProvider
       .forceFlush()
@@ -290,8 +305,9 @@ function _prepareConfig(kwargs: Partial<TraceRootConfig> = {}): TraceRootConfigI
   if (!config.local_mode && config.enable_span_cloud_export) {
     const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
     if (credentials) {
-      console.log(
-        `[TraceRoot] Credentials fetched successfully for token: ${config.token?.substring(0, 20)}... → ${credentials.otlp_endpoint}`
+      logVerbose(
+        config,
+        `Credentials fetched successfully for token: ${config.token?.substring(0, 20)}... → ${credentials.otlp_endpoint}`
       );
 
       // Update config with fetched credentials
@@ -302,9 +318,7 @@ function _prepareConfig(kwargs: Partial<TraceRootConfig> = {}): TraceRootConfigI
       if (credentials.otlp_endpoint) {
         config.otlp_endpoint = credentials.otlp_endpoint;
       } else {
-        console.log(
-          `[TraceRoot] No endpoint in credentials, keeping default: ${config.otlp_endpoint}`
-        );
+        logVerbose(config, `No endpoint in credentials, keeping default: ${config.otlp_endpoint}`);
       }
 
       // Store credentials in config for logger to use later (only if cloud logging is enabled)
@@ -323,14 +337,14 @@ function _prepareConfig(kwargs: Partial<TraceRootConfig> = {}): TraceRootConfigI
 /**
  * Detect if there's an existing OpenTelemetry provider we can enhance
  */
-function _detectExistingProvider(): NodeTracerProvider | null {
+function _detectExistingProvider(config: TraceRootConfigImpl): NodeTracerProvider | null {
   const existingProvider = otelTrace.getTracerProvider();
   const providerType = existingProvider?.constructor?.name;
 
-  console.log(`[TraceRoot] Checking for existing provider...`);
-  console.log(`[TraceRoot] existingProvider:`, !!existingProvider);
-  console.log(`[TraceRoot] providerType:`, providerType);
-  console.log(`[TraceRoot] provider constructor:`, existingProvider?.constructor);
+  logVerbose(config, `Checking for existing provider...`);
+  logVerbose(config, `existingProvider:`, !!existingProvider);
+  logVerbose(config, `providerType:`, providerType);
+  logVerbose(config, `provider constructor:`, existingProvider?.constructor);
 
   // Check if we have a real provider (including ProxyTracerProvider which wraps NodeTracerProvider)
   if (
@@ -341,13 +355,14 @@ function _detectExistingProvider(): NodeTracerProvider | null {
       providerType === 'ProxyTracerProvider' ||
       providerType.includes('TracerProvider'))
   ) {
-    console.log(
-      `[TraceRoot] Detected existing OpenTelemetry provider (${providerType}), adding TraceRoot processors to send traces to both destinations`
+    logVerbose(
+      config,
+      `Detected existing OpenTelemetry provider (${providerType}), adding TraceRoot processors to send traces to both destinations`
     );
     return existingProvider as NodeTracerProvider;
   }
 
-  console.log(`[TraceRoot] No compatible provider detected, creating new one`);
+  logVerbose(config, `No compatible provider detected, creating new one`);
   return null;
 }
 
@@ -360,19 +375,21 @@ function _enhanceExistingProvider(
 ): NodeTracerProvider {
   // Create TraceRoot's processors
   const traceRootProcessors = _createTraceRootProcessors(config);
-  console.log(
-    `[TraceRoot] Enhancing ${existingProvider.constructor.name} with ${traceRootProcessors.length} TraceRoot processors`
+  logVerbose(
+    config,
+    `Enhancing ${existingProvider.constructor.name} with ${traceRootProcessors.length} TraceRoot processors`
   );
 
   if (existingProvider.constructor.name === 'ProxyTracerProvider') {
-    console.log(
-      `[TraceRoot] ProxyTracerProvider detected - trying to add processors directly to proxy first`
+    logVerbose(
+      config,
+      `ProxyTracerProvider detected - trying to add processors directly to proxy first`
     );
 
     // First, try adding processors directly to the ProxyTracerProvider
     // This preserves the proxy's authentication and delegation logic
     if (typeof (existingProvider as any).addSpanProcessor === 'function') {
-      console.log(`[TraceRoot] ProxyTracerProvider has addSpanProcessor method, using it directly`);
+      logVerbose(config, `ProxyTracerProvider has addSpanProcessor method, using it directly`);
 
       for (const processor of traceRootProcessors) {
         (existingProvider as any).addSpanProcessor(processor);
@@ -398,12 +415,10 @@ function _enhanceExistingProvider(
         for (const processor of traceRootProcessors) {
           actualProvider.addSpanProcessor(processor);
         }
-        console.log(
-          `[TraceRoot] Added ${traceRootProcessors.length} processors to delegate provider`
-        );
+        logVerbose(config, `Added ${traceRootProcessors.length} processors to delegate provider`);
         _tracerProvider = actualProvider;
       } else {
-        console.log(`[TraceRoot] Could not access delegate, creating TraceRoot-only provider`);
+        logVerbose(config, `Could not access delegate, creating TraceRoot-only provider`);
         _tracerProvider = new NodeTracerProvider({
           resource: Resource.default().merge(
             new Resource({
@@ -419,16 +434,15 @@ function _enhanceExistingProvider(
     for (const processor of traceRootProcessors) {
       existingProvider.addSpanProcessor(processor);
     }
-    console.log(
-      `[TraceRoot] Added ${traceRootProcessors.length} processors to ${existingProvider.constructor.name}`
+    logVerbose(
+      config,
+      `Added ${traceRootProcessors.length} processors to ${existingProvider.constructor.name}`
     );
     _tracerProvider = existingProvider;
   }
 
   setupProcessExitHandlers();
-  console.log(
-    '[TraceRoot] Tracer initialized (enhanced existing provider with TraceRoot processors)'
-  );
+  logVerbose(config, 'Tracer initialized (enhanced existing provider with TraceRoot processors)');
   return _tracerProvider;
 }
 
@@ -494,7 +508,7 @@ function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
 
   // Create main span processor based on cloud export configuration
   if (config.enable_span_cloud_export) {
-    console.log(`[TraceRoot] Creating OTLP exporter for: ${config.otlp_endpoint}`);
+    logVerbose(config, `Creating OTLP exporter for: ${config.otlp_endpoint}`);
 
     // Create trace exporter for cloud export
     const traceExporter = new OTLPTraceExporter({
@@ -506,7 +520,7 @@ function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
     traceExporter.export = function (spans, resultCallback) {
       const wrappedCallback = (result: any) => {
         if (result.code !== 0) {
-          console.error(`[TraceRoot] Export failed:`, {
+          logVerboseError(config, `Export failed:`, {
             code: result.code,
             error: result.error?.message || result.error,
             endpoint: config.otlp_endpoint,
@@ -547,8 +561,9 @@ function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
     spanProcessors.push(consoleProcessor);
   }
 
-  console.log(
-    `[TraceRoot] Created ${spanProcessors.length} span processors (OTLP: ${config.enable_span_cloud_export}, Console: ${config.enable_span_console_export})`
+  logVerbose(
+    config,
+    `Created ${spanProcessors.length} span processors (OTLP: ${config.enable_span_cloud_export}, Console: ${config.enable_span_console_export})`
   );
   return spanProcessors;
 }
