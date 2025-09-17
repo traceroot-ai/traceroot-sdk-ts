@@ -7,7 +7,7 @@
 process.env.TRACEROOT_DISABLE_AUTO_INIT = 'true';
 
 import { jest } from '@jest/globals';
-import { trace as otelTrace, TracerProvider } from '@opentelemetry/api';
+import { trace as otelTrace } from '@opentelemetry/api';
 import {
   NodeTracerProvider,
   BatchSpanProcessor,
@@ -348,7 +348,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
       traceroot.init(config);
 
       // Verify tracer was initialized
-      const { isInitialized, getConfig } = require('../../src/tracer');
+      const { isInitialized } = require('../../src/tracer');
       expect(isInitialized()).toBe(true);
 
       // Test that tracing works with preserved resource
@@ -402,7 +402,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
       traceroot.init(config);
 
       // Verify tracer was initialized
-      const { isInitialized, getConfig } = require('../../src/tracer');
+      const { isInitialized } = require('../../src/tracer');
       expect(isInitialized()).toBe(true);
 
       const tracerConfig = getConfig();
