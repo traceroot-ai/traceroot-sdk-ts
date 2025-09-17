@@ -5,7 +5,7 @@
  * where spans are sent to both Axiom and TraceRoot platforms.
  *
  * Setup:
- * 1. Axiom NodeSDK initializes first and creates the provider
+ * 1. Axiom initializes first and creates the provider
  * 2. TraceRoot detects existing provider and enhances it
  * 3. All spans are exported to both destinations
  */
@@ -18,7 +18,7 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { trace, context } from '@opentelemetry/api';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 
-// Step 1: Initialize Axiom NodeSDK first (matching autumn server setup exactly)
+// Step 1: Initialize Axiom first
 if (process.env.AXIOM_TOKEN) {
   const traceExporter = new OTLPTraceExporter({
     url: 'https://api.axiom.co/v1/traces',
@@ -28,49 +28,17 @@ if (process.env.AXIOM_TOKEN) {
     },
   });
 
-  // Wrap the export method to add error logging with source identification
-  const originalExport = traceExporter.export.bind(traceExporter);
-  traceExporter.export = function (spans, resultCallback) {
-    console.log(
-      `[Axiom DEBUG] Attempting to export ${spans.length} spans to Axiom endpoint: https://api.axiom.co/v1/traces`
-    );
-
-    const wrappedCallback = (result: any) => {
-      if (result.code !== 0) {
-        console.error(`[Axiom ERROR] Axiom export failed:`, {
-          code: result.code,
-          error: result.error?.message || result.error,
-          endpoint: 'https://api.axiom.co/v1/traces',
-          source: 'Axiom',
-        });
-
-        // Check for 403 specifically
-        if (result.error?.message?.includes('403') || result.error?.toString().includes('403')) {
-          console.error(
-            `[Axiom ERROR] 403 Forbidden error from Axiom endpoint! Check AXIOM_TOKEN.`
-          );
-        }
-      } else {
-        console.log(`[Axiom DEBUG] Axiom export successful for ${spans.length} spans`);
-      }
-      resultCallback(result);
-    };
-
-    return originalExport(spans, wrappedCallback);
-  };
-
   // Creating a resource to identify your service in traces
   const resource = new Resource({
     [ATTR_SERVICE_NAME]: 'axiom-traceroot-example',
   });
 
-  // Configuring the OpenTelemetry Node SDK (exact autumn pattern)
+  // Configuring the OpenTelemetry Node Provider
   const provider = new NodeTracerProvider({
     resource: resource,
     spanProcessors: [new BatchSpanProcessor(traceExporter)],
   });
 
-  console.log('Starting Axiom OpenTelemetry SDK');
   // Register the provider globally
   provider.register();
 
@@ -79,13 +47,14 @@ if (process.env.AXIOM_TOKEN) {
     instrumentations: [getNodeAutoInstrumentations()],
   });
 
-  console.log('Axiom OpenTelemetry SDK started');
-
   // Verify that Axiom provider is properly registered
+  // which is ProxyTracerProvider
   const registeredProvider = trace.getTracerProvider();
   console.log('Registered provider type:', registeredProvider.constructor.name);
 
   if (registeredProvider.constructor.name === 'ProxyTracerProvider') {
+    // The delegate is the actual provider which is NodeTracerProvider
+    // Wrapped by the ProxyTracerProvider
     const delegate = (registeredProvider as any).getDelegate?.();
     console.log('ProxyTracerProvider delegate:', delegate ? delegate.constructor.name : 'null');
   }
@@ -96,7 +65,7 @@ if (process.env.AXIOM_TOKEN) {
 process.env.TRACEROOT_DISABLE_AUTO_INIT = 'true';
 import * as traceroot from '../src/index';
 
-// Step 3: Create manual tracer (following autumn pattern)
+// Step 3: Create manual tracer
 const tracer = trace.getTracer('example-app');
 
 // Step 4: Example function to trace (similar to handleAttachment)
@@ -118,15 +87,15 @@ const tracedHandleAttachment = traceroot.traceFunction(handleAttachment, {
   traceReturnValue: true,
 });
 
-// Step 6: Main example function following autumn's request pattern
+// Step 6: Main example function
 async function runExample() {
-  // Generate request context (similar to autumn's middleware)
+  // Generate request context
   const requestId = `req_${Date.now()}`;
   const timestamp = Date.now();
 
   console.log(`Starting request ${requestId}`);
 
-  // Create main request span (similar to autumn's index.ts:104)
+  // Create main request span
   const spanName = `GET /attachments/process - ${requestId}`;
   const span = tracer.startSpan(spanName);
 
@@ -137,7 +106,7 @@ async function runExample() {
     timestamp: timestamp,
   });
 
-  // Function to end span (similar to autumn's endSpan function)
+  // Function to end span
   const endSpan = () => {
     try {
       span.setAttributes({
@@ -146,7 +115,7 @@ async function runExample() {
       });
       span.end();
 
-      // Create additional close span (following autumn pattern)
+      // Create additional close span
       const closeSpan = tracer.startSpan('response_closed');
       closeSpan.setAttributes({
         req_id: requestId,
@@ -160,7 +129,7 @@ async function runExample() {
   };
 
   try {
-    // Run the traced function within the span's context (autumn pattern)
+    // Run the traced function within the span's context
     const result = await context.with(trace.setSpan(context.active(), span), async () => {
       return await tracedHandleAttachment('attach_123', 'user_456');
     });
@@ -186,13 +155,13 @@ async function main() {
     await runExample();
 
     // Wait between requests
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 100));
   }
   // Force flush to ensure all spans are exported
   await traceroot.forceFlushTracer();
 
-  // Wait for 5 seconds to ensure all spans are exported
-  await new Promise(resolve => setTimeout(resolve, 5000));
+  // Wait for 200ms to ensure all spans are exported
+  await new Promise(resolve => setTimeout(resolve, 200));
 }
 
 // Handle graceful shutdown
@@ -218,7 +187,7 @@ function waitForAxiomDelegate(callback: () => void, maxAttempts = 10) {
 
   if (maxAttempts > 0) {
     console.log(`Waiting for Axiom delegate... (${10 - maxAttempts + 1}/10)`);
-    setTimeout(() => waitForAxiomDelegate(callback, maxAttempts - 1), 200);
+    setTimeout(() => waitForAxiomDelegate(callback, maxAttempts - 1), 100);
   } else {
     console.log('Axiom delegate not ready after waiting, proceeding anyway...');
     callback();
@@ -232,7 +201,7 @@ waitForAxiomDelegate(() => {
   traceroot.init({
     service_name: 'axiom-traceroot-example',
     token: process.env.TRACEROOT_TOKEN || 'traceroot-*',
-    enable_span_console_export: true,
+    enable_span_console_export: false,
     enable_span_cloud_export: true,
   });
 
