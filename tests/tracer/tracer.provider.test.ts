@@ -402,7 +402,7 @@ describe('Tracer Provider Detection and Enhancement', () => {
       traceroot.init(config);
 
       // Verify tracer was initialized
-      const { isInitialized } = require('../../src/tracer');
+      const { isInitialized, getConfig } = require('../../src/tracer');
       expect(isInitialized()).toBe(true);
 
       const tracerConfig = getConfig();
