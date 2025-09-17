@@ -16,6 +16,16 @@ jest.mock('../../src/api/credential', () => ({
   fetchAwsCredentialsSync: jest.fn(),
 }));
 
+// Mock OTLP exporter to prevent network calls during tests
+jest.mock('@opentelemetry/exporter-trace-otlp-http', () => ({
+  OTLPTraceExporter: jest.fn().mockImplementation(() => ({
+    export: jest.fn((_spans: any, callback: any) => {
+      if (callback) callback({ code: 0 });
+    }),
+    shutdown: jest.fn(() => Promise.resolve()),
+  })),
+}));
+
 // Mock span for testing
 const createMockSpan = () => {
   const mockSpan = {

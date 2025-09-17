@@ -418,15 +418,11 @@ function _enhanceExistingProvider(
         logVerbose(config, `Added ${traceRootProcessors.length} processors to delegate provider`);
         _tracerProvider = actualProvider;
       } else {
-        logVerbose(config, `Could not access delegate, creating TraceRoot-only provider`);
-        _tracerProvider = new NodeTracerProvider({
-          resource: Resource.default().merge(
-            new Resource({
-              [ATTR_SERVICE_NAME]: config.service_name || 'traceroot-service',
-            })
-          ),
-          spanProcessors: traceRootProcessors,
-        });
+        logVerbose(
+          config,
+          `Could not access delegate, falling back to creating new registered provider`
+        );
+        return _createNewProvider(config);
       }
     }
   } else {
