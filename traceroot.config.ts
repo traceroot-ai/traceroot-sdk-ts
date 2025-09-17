@@ -25,6 +25,9 @@ const config: TraceRootConfigFile = {
   // Log level
   log_level: 'debug',
 
+  // Tracer verbose logging
+  tracer_verbose: false,
+
   // Local mode that whether to store all data locally
   local_mode: false,
 };

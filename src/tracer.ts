@@ -10,6 +10,19 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { Resource } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { TraceRootConfig, TraceRootConfigImpl } from './config';
+
+// Helper functions for conditional logging
+function logVerbose(config: TraceRootConfigImpl, message: string, ...args: any[]): void {
+  if (config.tracer_verbose) {
+    console.log(`[TraceRoot] ${message}`, ...args);
+  }
+}
+
+function logVerboseError(config: TraceRootConfigImpl, message: string, ...args: any[]): void {
+  if (config.tracer_verbose) {
+    console.error(`[TraceRoot] ${message}`, ...args);
+  }
+}
 import { TraceOptions, AwsCredentials } from './types';
 import { fetchAwsCredentialsSync } from './api/credential';
 import {
@@ -57,130 +70,19 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
   if (_tracerProvider !== null) {
     return _tracerProvider;
   }
-  // Merge file config with kwargs (kwargs take precedence)
-  let configParams: Partial<TraceRootConfig> = kwargs;
 
-  if (Object.keys(configParams).length === 0) {
-    throw new Error('No configuration provided for TraceRoot initialization');
-  }
-
-  // Fill in missing fields with some default values if not provided
-  if (!configParams.service_name) {
-    configParams.service_name = 'default-service';
-  }
-  if (!configParams.github_owner) {
-    configParams.github_owner = 'unknown';
-  }
-  if (!configParams.github_repo_name) {
-    configParams.github_repo_name = 'unknown';
-  }
-  if (!configParams.github_commit_hash) {
-    configParams.github_commit_hash = 'unknown';
-  }
-
-  const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
-
-  // If not in local mode and cloud export is enabled, fetch AWS credentials
-  if (!config.local_mode && config.enable_span_cloud_export) {
-    const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
-    if (credentials) {
-      // Update config with fetched credentials
-      config._name = credentials.hash;
-      config.otlp_endpoint = credentials.otlp_endpoint;
-
-      // Store credentials in config for logger to use later (only if cloud logging is enabled)
-      if (config.enable_log_cloud_export) {
-        (config as any)._awsCredentials = credentials;
-      }
-    }
-  } else if (!config.enable_span_cloud_export) {
-    // If span cloud export is disabled, also disable log cloud export
-    config.enable_log_cloud_export = false;
-  }
-
-  // Update the global config with full config object
+  // Prepare config first
+  const config = _prepareConfig(kwargs);
   _config = config;
 
-  // If both span exports are disabled, create minimal no-op tracer
-  if (!config.enable_span_cloud_export && !config.enable_span_console_export) {
-    _tracerProvider = new NodeTracerProvider({
-      resource: Resource.default(),
-      spanProcessors: [new NoopSpanProcessor()],
-    });
-    setupProcessExitHandlers();
-    return _tracerProvider;
-  }
+  // Check if there's already a global tracer provider registered
+  const existingProvider = _detectExistingProvider(config);
 
-  // Create resource with service information using new semantic conventions
-  const resource = Resource.default().merge(
-    new Resource({
-      [ATTR_SERVICE_NAME]: config.service_name,
-      [ATTR_SERVICE_VERSION]: config.github_commit_hash,
-      'service.github_owner': config.github_owner,
-      'service.github_repo_name': config.github_repo_name,
-      'service.environment': config.environment,
-      [TELEMETRY_ATTRIBUTES.SDK_LANGUAGE]: TELEMETRY_SDK_LANGUAGE,
-    })
-  );
-
-  // Prepare span processors array
-  const spanProcessors = [];
-
-  // Create main span processor based on cloud export configuration
-  if (config.enable_span_cloud_export) {
-    // Create trace exporter for cloud export
-    const traceExporter = new OTLPTraceExporter({
-      url: config.otlp_endpoint,
-    });
-
-    // Create span processor
-    // Local mode: use SimpleSpanProcessor for immediate export when span ends
-    // This ensures spans are only exported when their function actually completes
-    // Non-local mode: use BatchSpanProcessor for batching and exporting spans for better performance
-    const spanProcessor = config.local_mode
-      ? new SimpleSpanProcessor(traceExporter)
-      : new BatchSpanProcessor(traceExporter, {
-          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-        });
-
-    spanProcessors.push(spanProcessor);
+  if (existingProvider) {
+    return _enhanceExistingProvider(existingProvider, config);
   } else {
-    // Use NoopSpanProcessor when cloud export is disabled
-    spanProcessors.push(new NoopSpanProcessor());
+    return _createNewProvider(config);
   }
-
-  // If console export is enabled, add console span processor with same type as main processor
-  // This will log the spans to the console for debugging purposes etc.
-  if (config.enable_span_console_export) {
-    const consoleExporter = new ConsoleSpanExporter();
-    const consoleProcessor = config.local_mode
-      ? new SimpleSpanProcessor(consoleExporter)
-      : new BatchSpanProcessor(consoleExporter, {
-          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
-          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
-          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
-          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
-        });
-    spanProcessors.push(consoleProcessor);
-  }
-
-  // Create and configure the tracer provider with span processors
-  _tracerProvider = new NodeTracerProvider({
-    resource: resource,
-    spanProcessors: spanProcessors,
-  });
-
-  // Register the tracer provider globally
-  _tracerProvider.register();
-
-  // Set up automatic cleanup on process exit
-  setupProcessExitHandlers();
-
-  console.log('[TraceRoot] Tracer initialized');
-  return _tracerProvider;
 }
 
 /**
@@ -193,7 +95,9 @@ export function _initializeTracing(kwargs: Partial<TraceRootConfig> = {}): NodeT
  */
 export function forceFlushTracer(): Promise<void> {
   if (_tracerProvider !== null) {
-    console.log('[TraceRoot] Flushing tracer');
+    if (_config?.tracer_verbose) {
+      console.log('[TraceRoot] Flushing tracer');
+    }
     // Return a promise that never rejects to prevent unhandled rejections
     return _tracerProvider
       .forceFlush()
@@ -368,6 +272,300 @@ export function traceFunction<T extends (...args: any[]) => any>(
   return ((...args: any[]) => {
     return _traceFunction(fn, traceOptions, null, args);
   }) as T;
+}
+
+/**
+ * Prepare and validate TraceRoot configuration
+ */
+function _prepareConfig(kwargs: Partial<TraceRootConfig> = {}): TraceRootConfigImpl {
+  // Merge file config with kwargs (kwargs take precedence)
+  let configParams: Partial<TraceRootConfig> = kwargs;
+
+  if (Object.keys(configParams).length === 0) {
+    throw new Error('No configuration provided for TraceRoot initialization');
+  }
+
+  // Fill in missing fields with some default values if not provided
+  if (!configParams.service_name) {
+    configParams.service_name = 'default-service';
+  }
+  if (!configParams.github_owner) {
+    configParams.github_owner = 'unknown';
+  }
+  if (!configParams.github_repo_name) {
+    configParams.github_repo_name = 'unknown';
+  }
+  if (!configParams.github_commit_hash) {
+    configParams.github_commit_hash = 'unknown';
+  }
+
+  const config = new TraceRootConfigImpl(configParams as TraceRootConfig);
+
+  // If not in local mode and cloud export is enabled, fetch AWS credentials
+  if (!config.local_mode && config.enable_span_cloud_export) {
+    const credentials: AwsCredentials | null = fetchAwsCredentialsSync(config);
+    if (credentials) {
+      logVerbose(
+        config,
+        `Credentials fetched successfully for token: ${config.token?.substring(0, 20)}... → ${credentials.otlp_endpoint}`
+      );
+
+      // Update config with fetched credentials
+      if (credentials.hash) {
+        config._name = credentials.hash;
+      }
+
+      if (credentials.otlp_endpoint) {
+        config.otlp_endpoint = credentials.otlp_endpoint;
+      } else {
+        logVerbose(config, `No endpoint in credentials, keeping default: ${config.otlp_endpoint}`);
+      }
+
+      // Store credentials in config for logger to use later (only if cloud logging is enabled)
+      if (config.enable_log_cloud_export) {
+        (config as any)._awsCredentials = credentials;
+      }
+    }
+  } else if (!config.enable_span_cloud_export) {
+    // If span cloud export is disabled, also disable log cloud export
+    config.enable_log_cloud_export = false;
+  }
+
+  return config;
+}
+
+/**
+ * Detect if there's an existing OpenTelemetry provider we can enhance
+ */
+function _detectExistingProvider(config: TraceRootConfigImpl): NodeTracerProvider | null {
+  const existingProvider = otelTrace.getTracerProvider();
+  const providerType = existingProvider?.constructor?.name;
+
+  logVerbose(config, `Checking for existing provider...`);
+  logVerbose(config, `existingProvider:`, !!existingProvider);
+  logVerbose(config, `providerType:`, providerType);
+  logVerbose(config, `provider constructor:`, existingProvider?.constructor);
+
+  // Check if we have a real provider (including ProxyTracerProvider which wraps NodeTracerProvider)
+  if (
+    existingProvider &&
+    providerType &&
+    providerType !== 'NoopTracerProvider' &&
+    (providerType === 'NodeTracerProvider' ||
+      providerType === 'ProxyTracerProvider' ||
+      providerType.includes('TracerProvider'))
+  ) {
+    logVerbose(
+      config,
+      `Detected existing OpenTelemetry provider (${providerType}), adding TraceRoot processors to send traces to both destinations`
+    );
+    return existingProvider as NodeTracerProvider;
+  }
+
+  logVerbose(config, `No compatible provider detected, creating new one`);
+  return null;
+}
+
+/**
+ * Enhance an existing provider by adding TraceRoot processors
+ */
+function _enhanceExistingProvider(
+  existingProvider: NodeTracerProvider,
+  config: TraceRootConfigImpl
+): NodeTracerProvider {
+  // Create TraceRoot's processors
+  const traceRootProcessors = _createTraceRootProcessors(config);
+  logVerbose(
+    config,
+    `Enhancing ${existingProvider.constructor.name} with ${traceRootProcessors.length} TraceRoot processors`
+  );
+
+  if (existingProvider.constructor.name === 'ProxyTracerProvider') {
+    logVerbose(
+      config,
+      `ProxyTracerProvider detected - trying to add processors directly to proxy first`
+    );
+
+    // First, try adding processors directly to the ProxyTracerProvider
+    // This preserves the proxy's authentication and delegation logic
+    if (typeof (existingProvider as any).addSpanProcessor === 'function') {
+      logVerbose(config, `ProxyTracerProvider has addSpanProcessor method, using it directly`);
+
+      for (const processor of traceRootProcessors) {
+        (existingProvider as any).addSpanProcessor(processor);
+      }
+
+      _tracerProvider = existingProvider;
+    } else {
+      // Fallback: access delegate if proxy doesn't support addSpanProcessor
+      let actualProvider: NodeTracerProvider | null = null;
+
+      if (typeof (existingProvider as any).getDelegate === 'function') {
+        const delegate = (existingProvider as any).getDelegate();
+        if (
+          delegate &&
+          delegate.constructor?.name !== 'NoopTracerProvider' &&
+          typeof delegate.addSpanProcessor === 'function'
+        ) {
+          actualProvider = delegate;
+        }
+      }
+
+      if (actualProvider) {
+        for (const processor of traceRootProcessors) {
+          actualProvider.addSpanProcessor(processor);
+        }
+        logVerbose(config, `Added ${traceRootProcessors.length} processors to delegate provider`);
+        _tracerProvider = actualProvider;
+      } else {
+        logVerbose(config, `Could not access delegate, creating TraceRoot-only provider`);
+        _tracerProvider = new NodeTracerProvider({
+          resource: Resource.default().merge(
+            new Resource({
+              [ATTR_SERVICE_NAME]: config.service_name || 'traceroot-service',
+            })
+          ),
+          spanProcessors: traceRootProcessors,
+        });
+      }
+    }
+  } else {
+    // For real NodeTracerProvider, add processors directly
+    for (const processor of traceRootProcessors) {
+      existingProvider.addSpanProcessor(processor);
+    }
+    logVerbose(
+      config,
+      `Added ${traceRootProcessors.length} processors to ${existingProvider.constructor.name}`
+    );
+    _tracerProvider = existingProvider;
+  }
+
+  setupProcessExitHandlers();
+  logVerbose(config, 'Tracer initialized (enhanced existing provider with TraceRoot processors)');
+  return _tracerProvider;
+}
+
+/**
+ * Create a new NodeTracerProvider with TraceRoot configuration
+ */
+function _createNewProvider(config: TraceRootConfigImpl): NodeTracerProvider {
+  // If both span exports are disabled, create minimal no-op tracer
+  if (!config.enable_span_cloud_export && !config.enable_span_console_export) {
+    _tracerProvider = new NodeTracerProvider({
+      resource: Resource.default(),
+      spanProcessors: [new NoopSpanProcessor()],
+    });
+
+    // Register the no-op tracer provider globally
+    _tracerProvider.register();
+
+    setupProcessExitHandlers();
+    return _tracerProvider;
+  }
+
+  // Create resource with service information using new semantic conventions
+  const resource = Resource.default().merge(
+    new Resource({
+      [ATTR_SERVICE_NAME]: config.service_name,
+      [ATTR_SERVICE_VERSION]: config.github_commit_hash,
+      'service.github_owner': config.github_owner,
+      'service.github_repo_name': config.github_repo_name,
+      'service.environment': config.environment,
+      [TELEMETRY_ATTRIBUTES.SDK_LANGUAGE]: TELEMETRY_SDK_LANGUAGE,
+    })
+  );
+
+  // Create span processors using the helper function
+  const spanProcessors = _createTraceRootProcessors(config);
+
+  // If no processors created (all exports disabled), add NoopSpanProcessor
+  if (spanProcessors.length === 0) {
+    spanProcessors.push(new NoopSpanProcessor());
+  }
+
+  // Create and configure the tracer provider with span processors
+  _tracerProvider = new NodeTracerProvider({
+    resource: resource,
+    spanProcessors: spanProcessors,
+  });
+
+  // Register the tracer provider globally
+  _tracerProvider.register();
+
+  // Set up automatic cleanup on process exit
+  setupProcessExitHandlers();
+
+  logVerbose(config, 'Tracer initialized through new provider');
+  return _tracerProvider;
+}
+
+/**
+ * Helper function to create TraceRoot span processors
+ */
+function _createTraceRootProcessors(config: TraceRootConfigImpl): any[] {
+  const spanProcessors = [];
+
+  // Create main span processor based on cloud export configuration
+  if (config.enable_span_cloud_export) {
+    logVerbose(config, `Creating OTLP exporter for: ${config.otlp_endpoint}`);
+
+    // Create trace exporter for cloud export
+    const traceExporter = new OTLPTraceExporter({
+      url: config.otlp_endpoint,
+    });
+
+    // Wrap the export method to add error logging with source identification
+    const originalExport = traceExporter.export.bind(traceExporter);
+    traceExporter.export = function (spans, resultCallback) {
+      const wrappedCallback = (result: any) => {
+        if (result.code !== 0) {
+          logVerboseError(config, `Export failed:`, {
+            code: result.code,
+            error: result.error?.message || result.error,
+            endpoint: config.otlp_endpoint,
+          });
+        }
+        resultCallback(result);
+      };
+
+      return originalExport(spans, wrappedCallback);
+    };
+
+    // Create span processor
+    const spanProcessor = config.local_mode
+      ? new SimpleSpanProcessor(traceExporter)
+      : new BatchSpanProcessor(traceExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
+
+    spanProcessors.push(spanProcessor);
+  } else {
+    logVerbose(config, `Cloud export disabled - no OTLP processor created`);
+  }
+
+  // If console export is enabled, add console span processor
+  if (config.enable_span_console_export) {
+    const consoleExporter = new ConsoleSpanExporter();
+    const consoleProcessor = config.local_mode
+      ? new SimpleSpanProcessor(consoleExporter)
+      : new BatchSpanProcessor(consoleExporter, {
+          maxExportBatchSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_EXPORT_BATCH_SIZE,
+          exportTimeoutMillis: BATCH_SPAN_PROCESSOR_CONFIG.EXPORT_TIMEOUT_MILLIS,
+          scheduledDelayMillis: BATCH_SPAN_PROCESSOR_CONFIG.SCHEDULED_DELAY_MILLIS,
+          maxQueueSize: BATCH_SPAN_PROCESSOR_CONFIG.MAX_QUEUE_SIZE,
+        });
+    spanProcessors.push(consoleProcessor);
+  }
+
+  logVerbose(
+    config,
+    `Created ${spanProcessors.length} span processors (OTLP: ${config.enable_span_cloud_export}, Console: ${config.enable_span_console_export})`
+  );
+  return spanProcessors;
 }
 
 /**

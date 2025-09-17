@@ -60,6 +60,9 @@ export function loadConfigFromEnv(): TraceRootConfigFile {
   if (process.env.TRACEROOT_LOCAL_MODE !== undefined) {
     config.local_mode = process.env.TRACEROOT_LOCAL_MODE === 'true';
   }
+  if (process.env.TRACEROOT_TRACER_VERBOSE !== undefined) {
+    config.tracer_verbose = process.env.TRACEROOT_TRACER_VERBOSE === 'true';
+  }
 
   return config;
 }

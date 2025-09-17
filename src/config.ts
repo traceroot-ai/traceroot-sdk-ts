@@ -50,6 +50,9 @@ export interface TraceRootConfig {
     | 'ERROR'
     | 'SILENT';
 
+  // Tracer verbose logging (default: false)
+  tracer_verbose?: boolean;
+
   // Internal properties (set during initialization)
   _name?: string;
   _sub_name?: string;
@@ -101,6 +104,7 @@ export class TraceRootConfigImpl implements TraceRootConfig {
   enable_log_cloud_export: boolean = false;
   local_mode: boolean = false;
   log_level: 'debug' | 'info' | 'warn' | 'error' | 'silent' = 'debug';
+  tracer_verbose: boolean = false;
   _name?: string;
   _sub_name?: string;
 
@@ -131,6 +135,8 @@ export class TraceRootConfigImpl implements TraceRootConfig {
         ? config.enable_log_cloud_export
         : this.enable_log_cloud_export;
     this.local_mode = config.local_mode !== undefined ? config.local_mode : this.local_mode;
+    this.tracer_verbose =
+      config.tracer_verbose !== undefined ? config.tracer_verbose : this.tracer_verbose;
     this.log_level =
       (config.log_level?.toLowerCase() as 'debug' | 'info' | 'warn' | 'error' | 'silent') ||
       'debug';
