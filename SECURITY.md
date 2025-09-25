@@ -32,4 +32,3 @@ If you have questions or issues with the private reporting process, you can cont
 - **Discord:** [Join here](https://discord.gg/tPyffEZvvJ)
 
 Private GitHub reporting is always the preferred method for security vulnerabilities.
-
