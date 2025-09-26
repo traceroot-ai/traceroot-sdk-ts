@@ -11,7 +11,7 @@
 [![Testing Status][testing-image]][testing-url]
 [![Documentation][docs-image]][docs-url]
 [![npm version][npm-image]][npm-url]
-[![TraceRoot.AI Website][company-website-image]][company-website-url]
+[![TraceRoot.AI Website](https://raw.githubusercontent.com/traceroot-ai/traceroot/refs/heads/main/misc/images/custom-website-badge.svg)][company-website-url]
 
 </div>
 
@@ -58,7 +58,6 @@ main().then(async () => {
 
 Please reach out to founders@traceroot.ai if you have any questions.
 
-[company-website-image]: https://img.shields.io/badge/website-traceroot.ai-black
 [company-website-url]: https://traceroot.ai
 [docs-image]: https://img.shields.io/badge/docs-traceroot.ai-0dbf43
 [docs-url]: https://docs.traceroot.ai
