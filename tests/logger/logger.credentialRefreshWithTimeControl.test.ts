@@ -1,5 +1,6 @@
 import { setGlobalConfig, getLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
+import { TEST_API_ENDPOINTS } from '../testConstants';
 
 // Mock winston and related dependencies
 jest.mock('winston', () => {
@@ -181,7 +182,7 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
 
       // Fetch should be called to refresh credentials
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.test.traceroot.ai/v1/verify/credentials?token=test-token',
+        `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=test-token`,
         expect.objectContaining({
           method: 'GET',
           headers: {
@@ -229,7 +230,7 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
 
       // Fetch should now be called
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.test.traceroot.ai/v1/verify/credentials?token=test-token',
+        `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=test-token`,
         expect.objectContaining({
           method: 'GET',
           headers: {
@@ -274,7 +275,7 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
 
       // Verify credential refresh was called
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.test.traceroot.ai/v1/verify/credentials?token=test-token',
+        `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=test-token`,
         expect.objectContaining({
           method: 'GET',
           headers: {
@@ -318,7 +319,7 @@ describe('TraceRoot Logger Credential Refresh with Time Control', () => {
 
       // Verify that refresh was attempted
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.test.traceroot.ai/v1/verify/credentials?token=test-token',
+        `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=test-token`,
         expect.objectContaining({
           method: 'GET',
           headers: {

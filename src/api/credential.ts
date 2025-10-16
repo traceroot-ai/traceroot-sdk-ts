@@ -5,7 +5,7 @@ import { AwsCredentials } from '../types';
  * Get the TraceRoot API base URL - can be overridden via environment variable
  */
 function getTraceRootApiBaseUrl(): string {
-  return process.env.TRACEROOT_API_BASE_URL || 'https://api.test.traceroot.ai';
+  return process.env.TRACEROOT_API_BASE_URL || 'https://api.prod1.traceroot.ai';
 }
 
 /**

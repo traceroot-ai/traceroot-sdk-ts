@@ -1,5 +1,6 @@
 import { TraceRootLogger, shutdownLogger, setGlobalConfig, getLogger } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
+import { TEST_API_ENDPOINTS } from '../testConstants';
 
 // Mock winston and related dependencies
 jest.mock('winston', () => {
@@ -167,7 +168,7 @@ describe('TraceRoot Logger Credential Expiration', () => {
 
       // Fetch should be called to refresh credentials
       expect(global.fetch).toHaveBeenCalledWith(
-        'https://api.test.traceroot.ai/v1/verify/credentials?token=test-token',
+        `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=test-token`,
         expect.objectContaining({
           method: 'GET',
           headers: {
