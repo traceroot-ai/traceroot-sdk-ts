@@ -1,6 +1,7 @@
 import { getLogger, shutdownLogger, setGlobalConfig } from '../../src/logger';
 import { TraceRootConfigImpl } from '../../src/config';
 import * as credential from '../../src/api/credential';
+import { TEST_API_ENDPOINTS } from '../testConstants';
 
 // Mock winston and related dependencies
 jest.mock('winston', () => {
@@ -151,7 +152,7 @@ describe('TraceRoot Logger with Invalid AWS Credentials', () => {
 
     // Verify that credential refresh was attempted
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://api.test.traceroot.ai/v1/verify/credentials?token=invalid-token',
+      `${TEST_API_ENDPOINTS.VERIFY_CREDENTIALS}?token=invalid-token`,
       expect.objectContaining({
         method: 'GET',
         headers: {

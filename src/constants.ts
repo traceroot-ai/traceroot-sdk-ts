@@ -36,5 +36,5 @@ export const BATCH_SPAN_PROCESSOR_CONFIG = {
  * API endpoints
  */
 export const API_ENDPOINTS = {
-  VERIFY_CREDENTIALS: 'https://api.test.traceroot.ai/v1/verify/credentials',
+  VERIFY_CREDENTIALS: 'https://api.prod1.traceroot.ai/v1/verify/credentials',
 } as const;
